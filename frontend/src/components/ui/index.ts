@@ -1,0 +1,12 @@
+// UI Atoms barrel — import from '@/components/ui'
+export { default as Button }  from './Button'
+export { default as Badge }   from './Badge'
+export { default as Card, AnimatedCard }   from './Card'
+export { default as Modal }   from './Modal'
+export { default as Tooltip } from './Tooltip'
+
+export type { ButtonProps, ButtonVariant, ButtonSize } from './Button'
+export type { BadgeProps, BadgeVariant }               from './Badge'
+export type { CardProps }                              from './Card'
+export type { ModalProps, ModalSize }                  from './Modal'
+export type { TooltipProps, TooltipPlacement }         from './Tooltip'

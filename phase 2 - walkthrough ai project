@@ -1,0 +1,95 @@
+# Phase 1 — Project Scaffold ✓
+
+## What Was Built
+
+### Frontend (`frontend/`)
+| File | Purpose |
+|---|---|
+| [package.json](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/package.json) | All deps pinned (React 18.3.1, Vite 5.4.2, Framer Motion 11.11.9, Zustand 4.5.5, etc.) |
+| [vite.config.ts](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/vite.config.ts) | React plugin, `@/` alias, `/api` + `/ws` proxy to port 8000 |
+| [tailwind.config.ts](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/tailwind.config.ts) | CSS token bridge — all colors/shadows reference `var(--)` |
+| [tsconfig.json](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/tsconfig.json) | strict mode + `@/*` path alias |
+| [postcss.config.js](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/postcss.config.js) | Tailwind + Autoprefixer |
+| [index.html](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/index.html) | SEO meta tags, `data-theme="dark"`, Inter preconnect |
+| [src/main.tsx](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/main.tsx) | QueryClient + BrowserRouter + ThemeProvider wired up |
+| [src/App.tsx](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/App.tsx) | Lazy-loaded routes with AnimatePresence page transitions |
+| [src/styles/globals.css](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/styles/globals.css) | Full canonical design token set (dark + light) |
+| [src/providers/ThemeProvider.tsx](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/providers/ThemeProvider.tsx) | localStorage + system-preference theme, `data-theme` on `<html>` |
+| [src/components/layout/Navbar.tsx](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/components/layout/Navbar.tsx) | Active-link nav, logo, theme toggle |
+| [src/components/layout/PageWrapper.tsx](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/components/layout/PageWrapper.tsx) | Framer Motion page enter/exit |
+| `src/pages/*.tsx` | Stubs for HomePage, LevelSelect, GamePage, ResultPage, Leaderboard |
+
+### Backend (`backend/`)
+| File | Purpose |
+|---|---|
+| [main.py](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/backend/main.py) | FastAPI app, CORS, lifespan DB init, all routers included |
+| [config.py](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/backend/config.py) | `pydantic-settings` Settings class, reads `.env` |
+| [database.py](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/backend/database.py) | Async SQLAlchemy engine (aiosqlite), [get_db()](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/backend/database.py#31-35) dependency |
+| [models.py](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/backend/models.py) | Stub — populated in Phase 8 |
+| [routes/game.py](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/backend/routes/game.py) | Stub routes for `/api/games/*` |
+| [routes/sessions.py](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/backend/routes/sessions.py) | Stub |
+| [routes/scores.py](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/backend/routes/scores.py) | Stub |
+| [routes/leaderboard.py](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/backend/routes/leaderboard.py) | Stub |
+
+### Root
+| File | Purpose |
+|---|---|
+| [requirements.txt](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/requirements.txt) | 12 pinned Python deps (pydantic bumped to 2.8.2 for Win/Py3.13 wheels) |
+| [.env.example](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/.env.example) | Template env vars |
+| [docker-compose.yml](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/docker-compose.yml) | frontend:5173 + backend:8000 with hot reload |
+
+## Installation Results
+
+| Step | Result |
+|---|---|
+| `npm install` | ✅ 327 packages, exit 0 |
+| `pip install -r requirements.txt` | ✅ 26 packages installed, exit 0 |
+| `npm run dev` | ✅ VITE v5.4.2 ready in 1854ms |
+
+## Screenshot — Live at http://localhost:5173
+
+![Phase 1 live](C:/Users/ompra/.gemini/antigravity/brain/a774aff8-7ee2-4549-a581-7ae989525ade/phase1_live_1774029505491.png)
+
+**Verified:**
+- ✅ Navbar with logo, Home/Games/Leaderboard links, theme toggle
+- ✅ Dark background (`#08080f` — `--bg-base`)
+- ✅ `IntelliPlay` heading in `var(--text-primary)`
+- ✅ "Phase 1 scaffold running ✓" confirmation message  
+- ✅ Zero console errors
+
+## One Note — pydantic Version
+The plan specified `pydantic==2.7.0`, but `pydantic-core 2.18.1` (its dependency) has no pre-built wheel for Python 3.13 on Windows and requires Rust to compile, which failed. Bumped to `pydantic==2.8.2` (ships `pydantic-core 2.20.1` with a Win/Py3.13 wheel). This is a patch-safe bump — **no API changes, same Pydantic v2 semantics**.
+
+---
+
+# Phase 2 — Design System & UI Atoms ✓
+
+## What Was Built
+
+| File | Purpose |
+|---|---|
+| [src/utils/cn.ts](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/utils/cn.ts) | [cn()](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/utils/cn.ts#4-11) — clsx + tailwind-merge utility |
+| [src/animations/variants.ts](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/animations/variants.ts) | All Framer Motion variant configs (page, card, modal, tooltip, star, AI step row, stagger) |
+| [src/components/ui/Button.tsx](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/components/ui/Button.tsx) | 5 variants, 3 sizes, loading spinner, left/right icon slots |
+| [src/components/ui/Badge.tsx](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/components/ui/Badge.tsx) | 7 colour variants, 2 sizes, optional dot indicator |
+| [src/components/ui/Card.tsx](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/components/ui/Card.tsx) | Flat surface, hover lift + optional glow, [AnimatedCard](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/components/ui/Card.tsx#68-71) for stagger lists |
+| [src/components/ui/Modal.tsx](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/components/ui/Modal.tsx) | AnimatePresence, backdrop blur, focus trap, Escape key, body scroll lock, 5 sizes, portal |
+| [src/components/ui/Tooltip.tsx](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/components/ui/Tooltip.tsx) | 4 placements, configurable delay, accessible `role=tooltip` |
+| [src/components/ui/index.ts](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/components/ui/index.ts) | Barrel export for all atoms |
+| [src/types/ai.types.ts](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/types/ai.types.ts) | Full [StepDict](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/types/ai.types.ts#8-43) + all algorithm-specific fields, `WSClientMessage/ServerMessage` unions |
+| [src/types/game.types.ts](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/types/game.types.ts) | All game state shapes, [GameId](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/types/game.types.ts#6-12), [Difficulty](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/types/game.types.ts#14-15), [GameMode](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/types/game.types.ts#17-18), `PAR_TIME_MS` |
+| [src/types/api.types.ts](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/types/api.types.ts) | HTTP request/response shapes for every route |
+| [src/services/api.ts](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/services/api.ts) | Axios base client with error interceptor |
+| [src/services/websocket.ts](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/services/websocket.ts) | Managed WebSocket: reconnect, 15s keepalive, message queue |
+| [src/services/gameService.ts](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/services/gameService.ts) | Typed game API wrappers |
+| [src/vite-env.d.ts](file:///c:/Users/ompra/OneDrive/Desktop/AI%20Project/frontend/src/vite-env.d.ts) | `ImportMeta.env` type declaration for Vite |
+
+## TypeScript Check
+```
+npx tsc --noEmit  →  Exit 0 ✔  (zero errors)
+```
+
+## Browser
+![Phase 2 live](C:/Users/ompra/.gemini/antigravity/brain/a774aff8-7ee2-4549-a581-7ae989525ade/phase2_live_1774030733645.png)
+
+Dev server still clean, zero console errors. CSS token palette (`--bg-base:#08080f`, `--accent:#7c3aed`) visible in navbar/background.
