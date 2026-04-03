@@ -351,6 +351,45 @@ async def websocket_missionaries(websocket: WebSocket, session_id: str):
     await websocket.close()
 
 
+@router.get("/missionaries/{session_id}/hint")
+async def get_missionaries_hint(session_id: str):
+    """Get a hint for the current missionaries puzzle state."""
+    session = sessions.get(session_id)
+    if not session or session.get("game") != "missionaries":
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    current_state: MissionariesState = session.get("state")
+    if not current_state:
+        raise HTTPException(status_code=400, detail="Invalid game state")
+    
+    # Solve from current state using BFS
+    result = bfs(current_state)
+    
+    if result.optimal_length == 0:
+        return {
+            "explanation": "You've already solved it!",
+            "steps_remaining": 0
+        }
+    
+    # Get the next move from the solution
+    if result.path and len(result.path) > 1:
+        next_state = result.path[1]
+        current_boat = current_state.boat_side
+        next_boat = next_state.boat_side
+        
+        # Calculate the move
+        m_moved = abs(current_state.m_left - next_state.m_left)
+        c_moved = abs(current_state.c_left - next_state.c_left)
+        
+        explanation = f"Move {m_moved} missionary/missionaries and {c_moved} cannibal/cannibals across the river. This brings you {result.optimal_length - 1} moves closer to the solution!"
+        return {
+            "explanation": explanation,
+            "steps_remaining": result.optimal_length
+        }
+    
+    raise HTTPException(status_code=400, detail="Could not generate hint")
+
+
 # ==================== N-QUEENS ====================
 @router.post("/nqueens/new", response_model=NQueensNewResponse)
 async def create_new_nqueens(req: NQueensNewRequest):
