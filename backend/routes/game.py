@@ -24,7 +24,8 @@ from backend.agents.csp_agent import CSPAgent
 from backend.algorithms.astar import astar
 from backend.algorithms.bfs import bfs
 from backend.algorithms.csp import solve_nqueens
-from backend.algorithms.cryptarith_solver import solve_to_stepdicts, parse_puzzle, solve_cryptarithm\nfrom backend.algorithms.astar_teaching import get_best_moves, rate_user_move
+from backend.algorithms.cryptarith_solver import solve_to_stepdicts, parse_puzzle, solve_cryptarithm
+from backend.algorithms.astar_teaching import get_best_moves, rate_user_move
 
 router = APIRouter()
 

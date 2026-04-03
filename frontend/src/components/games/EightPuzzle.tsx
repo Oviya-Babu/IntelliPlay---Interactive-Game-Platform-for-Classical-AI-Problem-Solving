@@ -34,6 +34,8 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
   const [isPaused, setIsPaused] = useState(false)
   const [currentSpeed, setCurrentSpeed] = useState(1)
   const [currentExplanation, setCurrentExplanation] = useState('')
+  const [bestMoves, setBestMoves] = useState<any[]>([])
+  const [lastMovedTile, setLastMovedTile] = useState<number | null>(null)
   const playbackIntervalRef = useRef<number | null>(null)
   const playbackIndexRef = useRef<number>(0)
 
@@ -120,36 +122,131 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
     }
   }, [aiSolving, isPaused, currentSpeed, stream.steps])
 
-  // Check adjacency
-  const isAdjacent = (tileIdx: number) => {
-    const rowB = Math.floor(blankPos / 3)
-    const colB = blankPos % 3
-    const rowT = Math.floor(tileIdx / 3)
-    const colT = tileIdx % 3
-    return Math.abs(rowB - rowT) + Math.abs(colB - colT) === 1
+  // Helper: Convert flat index to row/col
+  const getRowCol = (index: number) => {
+    return [Math.floor(index / 3), index % 3]
   }
 
-  // Handle tile click
+  // Helper: Check if two positions are adjacent (Manhattan distance = 1)
+  const arePositionsAdjacent = (i: number, j: number) => {
+    const [r1, c1] = getRowCol(i)
+    const [r2, c2] = getRowCol(j)
+    return Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1
+  }
+
+  // Check if tile at index is adjacent to empty space
+  const isAdjacent = (tileIdx: number) => {
+    const emptyIdx = board.indexOf(0)
+    return arePositionsAdjacent(tileIdx, emptyIdx)
+  }
+
+  // STEP 2: Check if puzzle is solvable
+  const isSolvable = (testBoard: number[]) => {
+    let inversions = 0
+    for (let i = 0; i < testBoard.length; i++) {
+      for (let j = i + 1; j < testBoard.length; j++) {
+        if (testBoard[i] && testBoard[j] && testBoard[i] > testBoard[j]) {
+          inversions++
+        }
+      }
+    }
+    return inversions % 2 === 0
+  }
+
+  // Generate a solvable shuffled board
+  const generateSolvableBoard = () => {
+    let shuffled = [...goalState]
+    let isSolvableBoard = false
+
+    // Keep shuffling until we get a solvable board that's not already solved
+    while (!isSolvableBoard || shuffled.join('') === goalState.join('')) {
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+      }
+      isSolvableBoard = isSolvable(shuffled)
+    }
+
+    return shuffled
+  }
+
+  // Calculate Manhattan distance for a tile
+  const getManhattanDistance = (index: number, value: number) => {
+    if (value === 0) return 0
+    const goalIndex = goalState.indexOf(value)
+    const [currentRow, currentCol] = getRowCol(index)
+    const [goalRow, goalCol] = getRowCol(goalIndex)
+    return Math.abs(currentRow - goalRow) + Math.abs(currentCol - goalCol)
+  }
+
+  // Handle tile click - move tile to adjacent empty space
   const handleTileClick = (tileIdx: number) => {
-    if (!sessionId || isSolved || aiSolving) return
-    if (board[tileIdx] === 0) return
+    console.log('[8-PUZZLE] handleTileClick called with index:', tileIdx, 'board:', board)
+    
+    // Validation checks
+    if (!sessionId) {
+      console.warn('[8-PUZZLE] No session ID available')
+      return
+    }
+    if (isSolved) {
+      console.log('[8-PUZZLE] Already solved')
+      return
+    }
+    if (aiSolving) {
+      console.log('[8-PUZZLE] AI currently solving')
+      return
+    }
+    if (board[tileIdx] === 0) {
+      console.warn('[8-PUZZLE] Clicked on empty space')
+      return
+    }
+
+    // Check adjacency
     if (!isAdjacent(tileIdx)) {
+      console.log('[8-PUZZLE] Invalid move: tile not adjacent to empty space', {
+        tileIdx,
+        tileValue: board[tileIdx],
+        emptyIdx: board.indexOf(0),
+      })
       setInvalidMoveAttempt(true)
       setTimeout(() => setInvalidMoveAttempt(false), 3000)
       return
     }
 
+    const movedTileValue = board[tileIdx]
+    console.log('[8-PUZZLE] Valid move attempt - sending to backend', {
+      boardBefore: board,
+      tileIdx,
+      tileValue: movedTileValue,
+      emptyIdx: board.indexOf(0),
+      sessionId,
+    })
+
+    // Track last moved tile for feedback
+    setLastMovedTile(movedTileValue)
+
+    // Send move to backend
     gameService
       .moveEightPuzzle({ session_id: sessionId, tile_pos: tileIdx })
       .then((res) => {
+        console.log('[8-PUZZLE] ✓ Move successful - response:', res)
         setBoard(res.board)
-        setBlankPos(res.blank_pos)
+        setBlankPos(res.board.indexOf(0))
         setMoveCount(res.move_count)
         setIsSolved(res.is_solved)
-        console.log('[8-PUZZLE] Move successful, solved:', res.is_solved)
+        console.log('[8-PUZZLE] State updated:', {
+          newBoard: res.board,
+          moved: true,
+        })
       })
-      .catch((e) => {
-        console.error('Move failed', e)
+      .catch((e: any) => {
+        console.error('[8-PUZZLE] ✗ Move failed - error:', e?.message || e, {
+          sessionId,
+          tileIdx,
+          errorDetails: e,
+        })
+        setInvalidMoveAttempt(true)
+        setTimeout(() => setInvalidMoveAttempt(false), 3000)
       })
   }
 
@@ -168,20 +265,47 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
       setCurrentStepIndex(0)
       setInvalidMoveAttempt(false)
       setCurrentExplanation('')
+      setLastMovedTile(null)
+      setBestMoves([])
       useGameStore.getState().startGame('eightpuzzle')
-      console.log('[8-PUZZLE] New game started')
+      console.log('[8-PUZZLE] New game started:', { board: res.board, optimal: res.optimal_moves })
+
+      // TODO: Load initial best moves (requires backend endpoint)
+      // if (res.session_id) {
+      //   gameService.getBestMoves(res.session_id, res.board)
+      //     .then((bestMovesRes) => setBestMoves(bestMovesRes.moves || []))
+      // }
     } catch (e) {
       console.error('Failed to start 8-puzzle', e)
     }
   }, [])
 
-  // Watch AI solve
+  // Compute best next move based on heuristic (local suggestion)
+  const getNextBestMove = () => {
+    if (bestMoves.length === 0) return null
+    return bestMoves[0]
+  }
+
+  // Get best move tile position
+  const getBestMoveTileIdx = () => {
+    const best = getNextBestMove()
+    if (!best) return null
+    // Try to find which tile was moved in the best move
+    if (best.explanation) {
+      const tileMatch = best.explanation.match(/[Tt]ile (\d+)/)
+      if (tileMatch) return parseInt(tileMatch[1])
+    }
+    return null
+  }
+
+  // Watch AI solve - shows final state immediately, then can step through
   const watchAISolve = useCallback(() => {
     if (!sessionId || aiSolving) return
-    console.log('[8-PUZZLE] Starting AI solve')
+    console.log('[8-PUZZLE] Starting AI solve - preparing solution steps')
+    // Start AI solving which will trigger WebSocket connection and stream steps
     setMoveCount(0)
     setCurrentStepIndex(0)
-    setCurrentExplanation('')
+    setCurrentExplanation('Fetching optimal solution from AI...')
     setIsPaused(false)
     setAiSolving(true)
   }, [sessionId, aiSolving])
@@ -272,6 +396,7 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
             >
               {board.map((val, idx) => {
                 const adj = isAdjacent(idx)
+                const isBestMove = bestMoves.length > 0 && val === bestMoves[0]?.board?.[idx]
                 let arrow = ''
                 if (adj && !isSolved && !aiSolving) {
                   const bRow = Math.floor(blankPos / 3)
@@ -301,8 +426,12 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
                       opacity: aiSolving ? 0.5 : 1,
                       boxShadow:
                         adj && !isSolved && !aiSolving && val !== 0
-                          ? '0 0 20px rgba(107,99,255,0.3)'
+                          ? isBestMove
+                            ? '0 0 30px rgba(34,197,94,0.6), inset 0 0 20px rgba(34,197,94,0.2)'
+                            : '0 0 20px rgba(107,99,255,0.3)'
                           : 'none',
+                      transition: 'all 0.3s ease',
+                      pointerEvents: 'auto',
                     }}
                     whileHover={adj && !isSolved && !aiSolving && val !== 0 ? { scale: 1.05 } : {}}
                   >
@@ -384,14 +513,49 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
                 boardState={JSON.stringify(board)}
               />
             ) : (
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/10 backdrop-blur-sm">
-                <h3 className="text-sm font-bold text-[var(--text-primary,#f1f0fe)] mb-4">Tips</h3>
-                <ul className="space-y-3 text-xs text-white/70 leading-5">
-                  <li>• Tiles with arrows can be clicked to move</li>
-                  <li>• Solve row by row: top → middle → bottom</li>
-                  <li>• Watch AI to see optimal strategy</li>
-                  <li>• Target is the minimum moves needed</li>
-                </ul>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/10 backdrop-blur-sm space-y-5 overflow-y-auto max-h-[70vh]">
+                <div>
+                  <h3 className="text-md font-bold text-[var(--text-primary,#f1f0fe)] mb-3">How 8-Puzzle Works</h3>
+                  <div className="space-y-3 text-xs text-white/70 leading-5">
+                    <div className="bg-white/5 border border-white/10 rounded p-3">
+                      <p className="font-semibold text-white/90 mb-1">📋 The Problem:</p>
+                      <p>Arrange numbered tiles 1-8 in order, with empty space at bottom-right corner, by sliding adjacent tiles into the empty space.</p>
+                    </div>
+                    
+                    <div className="bg-white/5 border border-white/10 rounded p-3">
+                      <p className="font-semibold text-white/90 mb-1">🎯 Movement Rules:</p>
+                      <ul className="space-y-1 ml-3 text-white/70">
+                        <li>• Only tiles adjacent to empty space can move</li>
+                        <li>• Click a tile to swap it with empty space</li>
+                        <li>• Tiles with arrows show valid moves</li>
+                      </ul>
+                    </div>
+
+                    <div className="bg-white/5 border border-white/10 rounded p-3">
+                      <p className="font-semibold text-white/90 mb-1">🚀 AI Strategy:</p>
+                      <p>Uses <span className="font-semibold text-emerald-300">A* Search</span> algorithm with <span className="font-semibold text-emerald-300">Manhattan Distance</span> heuristic to find the optimal solution in minimal moves!</p>
+                    </div>
+
+                    <div className="bg-white/5 border border-white/10 rounded p-3">
+                      <p className="font-semibold text-white/90 mb-1">💡 Algorithm Insight:</p>
+                      <p><span className="text-blue-300">f(n)</span> = <span className="text-green-300">g(n)</span> + <span className="text-orange-300">h(n)</span></p>
+                      <p className="text-white/60 mt-2 text-xs">
+                        <span className="text-green-300">g(n)</span>: moves taken so far<br/>
+                        <span className="text-orange-300">h(n)</span>: estimated distance to goal<br/>
+                        <span className="text-blue-300">f(n)</span>: total estimated cost
+                      </p>
+                    </div>
+
+                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded p-3">
+                      <p className="font-semibold text-emerald-300 mb-2">✨ Pro Tips:</p>
+                      <ul className="space-y-1 text-emerald-200/80 text-xs ml-3">
+                        <li>• Click "Watch AI Solve" to see optimal strategy</li>
+                        <li>• Position corner tiles first</li>
+                        <li>• Each step reduces total cost</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
