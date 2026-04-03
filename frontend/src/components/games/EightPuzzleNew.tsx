@@ -35,9 +35,14 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
   const [showHint, setShowHint] = useState(false)
   const [loadingHint, setLoadingHint] = useState(false)
 
+  // Undo/Redo history state
+  const [boardHistory, setBoardHistory] = useState<number[][]>([GOAL_STATE])
+  const [historyIndex, setHistoryIndex] = useState(0)
+
   // Hooks
   const stream = useAIStream(aiSolving ? sessionId : null, 'eightpuzzle')
   const playbackIntervalRef = useRef<number | null>(null)
+  const goalReachedRef = useRef(false)
 
   // Initialize game on mount
   useEffect(() => {
@@ -52,27 +57,49 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
   useEffect(() => {
     if (!stream?.steps || stream.steps.length === 0) return
     if (!aiSolving || isPaused) return
+    
+    // If goal was already reached, don't start a new interval
+    if (goalReachedRef.current) return
 
     const steps = stream.steps
     const speedMs = speed === 0.5 ? 800 : speed === 1 ? 500 : speed === 2 ? 250 : 100
     let index = currentStepIndex
 
     playbackIntervalRef.current = window.setInterval(() => {
+      // Double-check: if goal reached, stop immediately
+      if (goalReachedRef.current) {
+        clearInterval(playbackIntervalRef.current!)
+        playbackIntervalRef.current = null
+        return
+      }
+      
       if (index >= steps.length) {
+        // Mark goal as reached FIRST
+        goalReachedRef.current = true
+        
         clearInterval(playbackIntervalRef.current!)
         const last = steps[steps.length - 1] as any
         setBoard(last.state.board)
-        setMoveCount(steps.length - 1)
+        // Move count = total steps - 1 (first step is initial state, not a move)
+        const totalMoves = Math.max(0, steps.length - 1)
+        setMoveCount(totalMoves)
         setCurrentStepIndex(steps.length - 1)
+        // CRITICAL: Stop AI solving immediately when goal is reached
         setAiSolving(false)
         setIsSolved(true)
+        // Clear interval to prevent any further execution
+        if (playbackIntervalRef.current) {
+          clearInterval(playbackIntervalRef.current)
+          playbackIntervalRef.current = null
+        }
         return
       }
 
       const step = steps[index] as any
       if (step?.state?.board) {
         setBoard(step.state.board)
-        setMoveCount(index)
+        // Same counting: moves = step index (0 = initial, 1 = 1 move, etc)
+        setMoveCount(Math.max(0, index))
         setCurrentExplanation(step.explanation || `Step ${index + 1}`)
         setCurrentStepIndex(index)
       }
@@ -81,7 +108,10 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
     }, speedMs)
 
     return () => {
-      if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current)
+      if (playbackIntervalRef.current) {
+        clearInterval(playbackIntervalRef.current)
+        playbackIntervalRef.current = null
+      }
     }
   }, [aiSolving, isPaused, speed, stream?.steps, currentStepIndex])
 
@@ -90,6 +120,9 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
     try {
       setIsLoading(true)
       setError('')
+      // Reset goal reached flag when starting new game
+      goalReachedRef.current = false
+      
       const res = await gameService.newEightPuzzle()
       
       console.log('[8-PUZZLE] New game:', {
@@ -101,6 +134,8 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
 
       setSessionId(res.session_id)
       setBoard(res.board)
+      setBoardHistory([res.board])
+      setHistoryIndex(0)
       setOptimalMoves(res.optimal_moves)
       setMoveCount(0)
       setIsSolved(false)
@@ -108,6 +143,7 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
       setCurrentStepIndex(0)
       setCurrentExplanation('')
       setInvalidMove(false)
+      setShowHint(false)
     } catch (err) {
       console.error('[8-PUZZLE] Error:', err)
       setError('Failed to start game')
@@ -146,17 +182,46 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
           tile_pos: tileIndex,
         })
         
+        // Add to history and remove any future states if we were in the past
+        const newHistory = boardHistory.slice(0, historyIndex + 1)
+        newHistory.push(res.board)
+        setBoardHistory(newHistory)
+        setHistoryIndex(newHistory.length - 1)
+        
         setBoard(res.board)
         setMoveCount(res.move_count)
         setIsSolved(res.is_solved)
+        setShowHint(false)
       } catch (err) {
         console.error('[8-PUZZLE] Move error:', err)
         setInvalidMove(true)
         setTimeout(() => setInvalidMove(false), 1500)
       }
     },
-    [sessionId, board, isSolved, aiSolving]
+    [sessionId, board, isSolved, aiSolving, boardHistory, historyIndex]
   )
+
+  // Undo move
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0 && !aiSolving && !isSolved) {
+      const newIndex = historyIndex - 1
+      setHistoryIndex(newIndex)
+      setBoard(boardHistory[newIndex])
+      setMoveCount(newIndex)
+      setShowHint(false)
+    }
+  }, [historyIndex, boardHistory, aiSolving, isSolved])
+
+  // Redo move
+  const handleRedo = useCallback(() => {
+    if (historyIndex < boardHistory.length - 1 && !aiSolving && !isSolved) {
+      const newIndex = historyIndex + 1
+      setHistoryIndex(newIndex)
+      setBoard(boardHistory[newIndex])
+      setMoveCount(newIndex)
+      setShowHint(false)
+    }
+  }, [historyIndex, boardHistory, aiSolving, isSolved])
 
   // Start AI solving
   const solvePuzzle = useCallback(() => {
@@ -175,7 +240,7 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
     try {
       // Use the game session to get a hint
       // We'll make a call to solve from current state and get the first move
-      const res = await fetch(`/api/eightpuzzle/${sessionId}/hint`, {
+      const res = await fetch(`/api/games/eightpuzzle/${sessionId}/hint`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -402,30 +467,57 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
               )}
 
               {/* Control Buttons */}
-              <div className="flex gap-3 flex-wrap justify-center">
-                <Button onClick={startNewGame} variant="secondary" size="sm">
+              <div className="flex flex-col gap-4 items-center w-full">
+                {/* Top Row - New Game */}
+                <Button onClick={startNewGame} variant="secondary" size="sm" className="w-full">
                   New Game
                 </Button>
+                
                 {!aiSolving && !isSolved && sessionId && (
                   <>
-                    <Button onClick={solvePuzzle} size="sm">
-                      Solve Puzzle
-                    </Button>
-                    <Button onClick={getHint} variant="secondary" size="sm" disabled={loadingHint}>
-                      {loadingHint ? '🤔 Getting hint...' : '💡 Get Hint'}
-                    </Button>
+                    {/* Second Row - Solve & Hint */}
+                    <div className="flex gap-3 justify-center w-full">
+                      <Button onClick={solvePuzzle} size="sm" className="flex-1">
+                        Solve Puzzle
+                      </Button>
+                      <Button onClick={getHint} variant="secondary" size="sm" disabled={loadingHint} className="flex-1">
+                        {loadingHint ? '🤔 Getting hint...' : '💡 Get Hint'}
+                      </Button>
+                    </div>
+                    
+                    {/* Third Row - Undo & Redo */}
+                    <div className="flex gap-3 justify-center w-full">
+                      <Button 
+                        onClick={handleUndo} 
+                        variant="secondary" 
+                        size="sm"
+                        disabled={historyIndex <= 0}
+                        className="flex-1"
+                      >
+                        ↶ Undo
+                      </Button>
+                      <Button 
+                        onClick={handleRedo} 
+                        variant="secondary" 
+                        size="sm"
+                        disabled={historyIndex >= boardHistory.length - 1}
+                        className="flex-1"
+                      >
+                        ↷ Redo
+                      </Button>
+                    </div>
                   </>
                 )}
+                
                 {aiSolving && (
-                  <>
-                    <Button
-                      onClick={() => setIsPaused(!isPaused)}
-                      variant="secondary"
-                      size="sm"
-                    >
-                      {isPaused ? '▶ Resume' : '⏸ Pause'}
-                    </Button>
-                  </>
+                  <Button
+                    onClick={() => setIsPaused(!isPaused)}
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
+                  >
+                    {isPaused ? '▶ Resume' : '⏸ Pause'}
+                  </Button>
                 )}
               </div>
 

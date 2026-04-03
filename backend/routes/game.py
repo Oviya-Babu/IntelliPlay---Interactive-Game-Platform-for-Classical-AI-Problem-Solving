@@ -241,48 +241,52 @@ async def get_eightpuzzle_hint(session_id: str):
     # Solve from current state using A*
     result = astar(current_state)
     
-    # Get the first step (next move)
+    # If already at goal, no hint needed
+    if result.optimal_length == 0:
+        return {
+            "tile_pos": None,
+            "explanation": "Already at goal state!",
+            "steps_to_solution": 0
+        }
+    
+    # Get the next state in the solution (skip initial state at index 0)
     if result.steps and len(result.steps) > 1:
-        first_step = result.steps[0]
-        second_step = result.steps[1]
+        initial_state = result.steps[0]
+        next_state = result.steps[1]
         
         # Extract board data
-        current_board = first_step.get('state', {}).get('board', [])
-        next_board = second_step.get('state', {}).get('board', [])
+        current_board = list(initial_state.get('state', {}).get('board', []))
+        next_board = list(next_state.get('state', {}).get('board', []))
         
-        # Find the tile that should be moved
-        tile_pos = None
-        for i in range(9):
-            if current_board[i] != next_board[i]:
-                # The tile at position i in next_board moved here
-                if current_board[i] == 0:
-                    # Empty space is at i, find which tile moved into it
-                    tile_pos = i
-                    moved_value = next_board[i]
-                    break
+        # Find which position has the blank (0) in current state
+        current_blank = current_board.index(0)
+        next_blank = next_board.index(0)
         
-        if tile_pos is not None:
-            explanation = f"Move tile {moved_value} into the empty space. This is the optimal first move!"
-            return {
-                "tile_pos": tile_pos,
-                "explanation": explanation,
-                "steps_to_solution": result.optimal_length
-            }
+        # The tile that needs to be moved is at the next_blank position in current board
+        tile_to_move_value = current_board[next_blank]
+        
+        explanation = f"Move tile {tile_to_move_value} into the empty space. This is the optimal next move! ({result.optimal_length} moves remaining)"
+        return {
+            "tile_pos": next_blank,  # Position where the blank space will move to
+            "explanation": explanation,
+            "steps_to_solution": result.optimal_length
+        }
     
     # Fallback: suggest any adjacent tile
     blank_pos = current_state.board.index(0)
     neighbors = current_state.get_neighbors()
     if neighbors:
-        next_state = neighbors[0]
-        # Find which position changed
-        for i in range(9):
-            if current_state.board[i] == 0 and next_state.board[i] != 0:
-                explanation = f"Try moving an adjacent tile. Follow the arrows for guidance!"
-                return {
-                    "tile_pos": i,
-                    "explanation": explanation,
-                    "steps_to_solution": result.optimal_length
-                }
+        # Find an adjacent position to suggest
+        next_state, _ = neighbors[0]
+        next_blank = next_state.board.index(0)
+        tile_to_move = current_state.board[next_blank]
+        
+        explanation = f"Try moving tile {tile_to_move} into the empty space."
+        return {
+            "tile_pos": next_blank,
+            "explanation": explanation,
+            "steps_to_solution": result.optimal_length
+        }
     
     raise HTTPException(status_code=400, detail="Could not generate hint")
 
