@@ -24,7 +24,7 @@ from backend.agents.csp_agent import CSPAgent
 from backend.algorithms.astar import astar
 from backend.algorithms.bfs import bfs
 from backend.algorithms.csp import solve_nqueens
-from backend.algorithms.cryptarith_solver import solve_to_stepdicts, parse_puzzle, solve_cryptarithm
+from backend.algorithms.cryptarith_solver import solve_to_stepdicts, parse_puzzle, solve_cryptarithm\nfrom backend.algorithms.astar_teaching import get_best_moves, rate_user_move
 
 router = APIRouter()
 
@@ -192,6 +192,38 @@ async def websocket_eightpuzzle(websocket: WebSocket, session_id: str):
         await agent.stream_steps(websocket, steps_to_stream, delay_ms=200)
     await websocket.send_json({"type": "done", "best_move": None, "total_steps": len(steps_to_stream)})
     await websocket.close()
+
+
+# ==================== EIGHTPUZZLE TEACHING ====================
+@router.post("/eightpuzzle/best-moves")
+async def get_eightpuzzle_best_moves(req: dict):
+    session_id = req.get("session_id")
+    session = sessions.get(session_id)
+    if not session or session.get("game") != "eightpuzzle":
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    current_state = session.get("state")
+    if not current_state:
+        raise HTTPException(status_code=400, detail="Invalid game state")
+    
+    best_moves = get_best_moves(current_state, tuple(GOAL_STATE))
+    return {"best_moves": best_moves}
+
+
+@router.post("/eightpuzzle/rate-move")
+async def rate_eightpuzzle_move(req: dict):
+    session_id = req.get("session_id")
+    user_board = req.get("board", [])
+    session = sessions.get(session_id)
+    if not session or session.get("game") != "eightpuzzle":
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    current_state = session.get("state")
+    if not current_state:
+        raise HTTPException(status_code=400, detail="Invalid game state")
+    
+    feedback = rate_user_move(current_state, user_board)
+    return feedback
 
 
 # ==================== MISSIONARIES ====================
