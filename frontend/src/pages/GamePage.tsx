@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import TicTacToe from '@/components/games/TicTacToe'
-import EightPuzzle from '@/components/games/EightPuzzle'
+import EightPuzzleNew from '@/components/games/EightPuzzleNew'
 import Missionaries from '@/components/games/Missionaries'
 import NQueens from '@/components/games/NQueens'
 import Cryptarithmetic from '@/components/games/Cryptarithmetic'
@@ -36,7 +36,7 @@ export default function GamePage() {
     <>
       <BackButton />
       <div className={shellClass}>
-        {gameId === 'eightpuzzle' && <EightPuzzle />}
+        {gameId === 'eightpuzzle' && <EightPuzzleNew />}
         {gameId === 'missionaries' && <Missionaries />}
         {gameId === 'nqueens' && <NQueens />}
         {gameId === 'cryptarith' && <Cryptarithmetic />}

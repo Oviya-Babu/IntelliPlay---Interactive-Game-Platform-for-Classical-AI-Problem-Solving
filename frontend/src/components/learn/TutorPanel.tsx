@@ -279,18 +279,36 @@ export default function TutorPanel({
               exit={{ opacity: 0, x: 20 }}
               style={{ padding: 16, display: 'flex', flexDirection: 'column', height: '100%' }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{agent.avatar} {agent.name} says:</span>
                 {currentStep && (
-                  <span style={{ fontSize: 10, fontWeight: 'bold', padding: '2px 8px', borderRadius: 12, background: actionColor(currentStep.action), color: '#fff' }}>
-                    {currentStep.action}
-                  </span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 'bold', padding: '2px 8px', borderRadius: 12, background: actionColor(currentStep.action), color: '#fff' }}>
+                      {currentStep.action}
+                    </span>
+                    {currentStep.value && (
+                      <span style={{ fontSize: 10, fontWeight: 'bold', padding: '2px 8px', borderRadius: 12, background: 'rgba(59,130,246,0.3)', color: '#60a5fa' }}>
+                        f(n)={currentStep.value}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               
-              <div style={{ flex: 1, minHeight: 80 }}>
+              <div style={{ flex: 1, minHeight: 80, background: 'rgba(255,255,255,0.02)', border: `1px solid var(--text-muted)`, borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center' }}>
                 {currentStep ? (
-                  <TypewriterText key={currentStep.explanation} text={currentStep.explanation} speed={15} />
+                  <div style={{ width: '100%' }}>
+                    <div style={{ fontSize: 14, lineHeight: '1.6', color: '#fff' }}>
+                      <TypewriterText key={currentStep.explanation} text={currentStep.explanation} speed={15} />
+                    </div>
+                    {currentStep.state && (
+                      <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                        <div style={{ color: 'var(--text-muted)' }}>
+                          Board: {JSON.stringify(currentStep.state.board).substring(0, 40)}...
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <p style={{ fontSize: 15, color: 'var(--text-muted)', fontStyle: 'italic' }}>Waiting for game to begin...</p>
                 )}

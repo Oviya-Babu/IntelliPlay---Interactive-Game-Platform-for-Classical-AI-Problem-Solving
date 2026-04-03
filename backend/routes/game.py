@@ -227,6 +227,66 @@ async def rate_eightpuzzle_move(req: dict):
     return feedback
 
 
+@router.get("/eightpuzzle/{session_id}/hint")
+async def get_eightpuzzle_hint(session_id: str):
+    """Get a hint for the current puzzle state - suggests the next best move."""
+    session = sessions.get(session_id)
+    if not session or session.get("game") != "eightpuzzle":
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    current_state: EightPuzzleState = session.get("state")
+    if not current_state:
+        raise HTTPException(status_code=400, detail="Invalid game state")
+    
+    # Solve from current state using A*
+    result = astar(current_state)
+    
+    # Get the first step (next move)
+    if result.steps and len(result.steps) > 1:
+        first_step = result.steps[0]
+        second_step = result.steps[1]
+        
+        # Extract board data
+        current_board = first_step.get('state', {}).get('board', [])
+        next_board = second_step.get('state', {}).get('board', [])
+        
+        # Find the tile that should be moved
+        tile_pos = None
+        for i in range(9):
+            if current_board[i] != next_board[i]:
+                # The tile at position i in next_board moved here
+                if current_board[i] == 0:
+                    # Empty space is at i, find which tile moved into it
+                    tile_pos = i
+                    moved_value = next_board[i]
+                    break
+        
+        if tile_pos is not None:
+            explanation = f"Move tile {moved_value} into the empty space. This is the optimal first move!"
+            return {
+                "tile_pos": tile_pos,
+                "explanation": explanation,
+                "steps_to_solution": result.optimal_length
+            }
+    
+    # Fallback: suggest any adjacent tile
+    blank_pos = current_state.board.index(0)
+    neighbors = current_state.get_neighbors()
+    if neighbors:
+        next_state = neighbors[0]
+        # Find which position changed
+        for i in range(9):
+            if current_state.board[i] == 0 and next_state.board[i] != 0:
+                explanation = f"Try moving an adjacent tile. Follow the arrows for guidance!"
+                return {
+                    "tile_pos": i,
+                    "explanation": explanation,
+                    "steps_to_solution": result.optimal_length
+                }
+    
+    raise HTTPException(status_code=400, detail="Could not generate hint")
+
+
 # ==================== MISSIONARIES ====================
 @router.post("/missionaries/new", response_model=NewMissionariesResponse)
 async def create_new_missionaries():

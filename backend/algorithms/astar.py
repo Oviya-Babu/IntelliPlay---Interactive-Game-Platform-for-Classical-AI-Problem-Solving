@@ -65,23 +65,25 @@ def astar(start: EightPuzzleState) -> AStarResult:
             solution_steps = []
             for i, state in enumerate(node.path):
                 if i == 0:
-                    move_desc = "Starting position"
                     h_val = state.manhattan_distance(goal)
-                    expl = f"Starting position. Misplaced tiles (Manhattan distance): {h_val}. Need to find path to [1,2,3,4,5,6,7,8,0]"
+                    expl = f"🎬 START: Initial state with Manhattan distance = {h_val}\n✓ Goal state: [1,2,3,4,5,6,7,8,0]\n✓ Will explore {len(node.path) - 1} optimal moves using A* algorithm"
                 elif i == len(node.path) - 1:
                     prev_state = node.path[i - 1]
                     prev_blank = prev_state.board.index(0)
                     curr_blank = state.board.index(0)
                     moved_tile = prev_state.board[curr_blank]
                     h_val = state.manhattan_distance(goal)
-                    expl = f"GOAL REACHED! Moved tile {moved_tile}. Manhattan distance: {h_val} (0 = goal!). Solution found in {len(node.path) - 1} moves."
+                    expl = f"🎯 GOAL REACHED!\n✓ Moved tile {moved_tile} into the empty space\n✓ Manhattan distance: {h_val} (SOLVED!)\n✓ Total moves: {len(node.path) - 1}\n✓ This is the OPTIMAL solution guaranteed by A*"
                 else:
                     prev_state = node.path[i - 1]
                     prev_blank = prev_state.board.index(0)
                     curr_blank = state.board.index(0)
                     moved_tile = prev_state.board[curr_blank]
                     h_val = state.manhattan_distance(goal)
-                    expl = f"Moved tile {moved_tile}. Manhattan distance now: {h_val}. {len(node.path) - 1 - i} moves remaining."
+                    g_val = i  # Steps taken so far
+                    f_val = g_val + h_val  # f = g + h
+                    remaining = len(node.path) - 1 - i
+                    expl = f"Step {i}: Moved tile {moved_tile}↔empty space\n\n📊 A* Cost Breakdown:\n• g(n) [steps taken] = {g_val}\n• h(n) [distance to goal] = {h_val}\n• f(n) [total cost] = {g_val} + {h_val} = {f_val}\n\n⏳ {remaining} moves remaining to reach goal"
                 
                 solution_steps.append({
                     "step_id": i,

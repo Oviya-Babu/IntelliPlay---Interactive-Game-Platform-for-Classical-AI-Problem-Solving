@@ -15,12 +15,14 @@ interface EightPuzzleProps {
   onSessionChange?: (id: string | null) => void
 }
 
+const GOAL_STATE = [1, 2, 3, 4, 5, 6, 7, 8, 0]
+
 export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
   const navigate = useNavigate()
 
   // Core game state
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const [board, setBoard] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 0])
+  const [board, setBoard] = useState<number[]>(GOAL_STATE)
   const [blankPos, setBlankPos] = useState(8)
   const [moveCount, setMoveCount] = useState(0)
   const [optimalMoves, setOptimalMoves] = useState(0)
@@ -28,26 +30,28 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
   const [aiSolving, setAiSolving] = useState(false)
   const [resultData, setResultData] = useState<any>(null)
   const [invalidMoveAttempt, setInvalidMoveAttempt] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   // AI playback state
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
   const [currentSpeed, setCurrentSpeed] = useState(1)
   const [currentExplanation, setCurrentExplanation] = useState('')
-  const [bestMoves, setBestMoves] = useState<any[]>([])
-  const [lastMovedTile, setLastMovedTile] = useState<number | null>(null)
   const playbackIntervalRef = useRef<number | null>(null)
   const playbackIndexRef = useRef<number>(0)
 
-  const goalState = [1, 2, 3, 4, 5, 6, 7, 8, 0]
+  const goalState = GOAL_STATE
   const stream = useAIStream(aiSolving ? sessionId : null, 'eightpuzzle')
   const { getElapsedMs, hintsUsed, livesLost } = useGameStore()
   const { completeLevel } = useProgressStore()
-  // Initialize game
+
+  // Initialize game on mount
   useEffect(() => {
     const init = async () => {
       try {
+        setIsLoading(true)
         const res = await gameService.newEightPuzzle()
+        console.log('[8-PUZZLE] Game initialized:', res)
         setSessionId(res.session_id)
         setBoard(res.board)
         setBlankPos(res.blank_pos)
@@ -56,9 +60,10 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
         setIsSolved(false)
         setAiSolving(false)
         useGameStore.getState().startGame('eightpuzzle')
-        console.log('[8-PUZZLE] Game initialized')
       } catch (e) {
-        console.error('Failed to start 8-puzzle', e)
+        console.error('[8-PUZZLE] Failed to start game:', e)
+      } finally {
+        setIsLoading(false)
       }
     }
     init()
@@ -331,17 +336,36 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
           {/* Left Panel */}
           <aside className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/10 backdrop-blur-sm h-fit">
             <div className="space-y-6">
+              {/* Current State */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/55">Goal State</p>
-                <h2 className="mt-2 text-xl font-bold text-[var(--text-primary,#f1f0fe)]">Goal</h2>
-                <p className="mt-2 text-sm leading-6 text-white/70">Arrange tiles 1-8 in order</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400/70">Current State</p>
+                <h2 className="mt-2 text-lg font-bold text-emerald-300">Initial Position</h2>
+                <p className="mt-1 text-xs leading-5 text-white/60">Starting configuration of the puzzle</p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {board.map((val) => (
+                  <div
+                    key={`current-${val}-${board.indexOf(val)}`}
+                    className="flex h-12 items-center justify-center rounded border border-emerald-500/30 bg-emerald-500/10 text-xs font-bold text-emerald-300"
+                  >
+                    {val === 0 ? '·' : val}
+                  </div>
+                ))}
+              </div>
+
+              {/* Goal State */}
+              <div className="border-t border-white/10 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400/70">Goal State</p>
+                <h2 className="mt-2 text-lg font-bold text-blue-300">Target Position</h2>
+                <p className="mt-1 text-xs leading-5 text-white/60">What we need to reach</p>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 {goalState.map((val) => (
                   <div
                     key={`goal-${val}`}
-                    className="flex h-14 items-center justify-center rounded-lg border border-white/10 bg-[var(--bg-surface,#151521)] text-sm font-bold text-[var(--accent,#6c63ff)]"
+                    className="flex h-12 items-center justify-center rounded border border-blue-500/30 bg-blue-500/10 text-xs font-bold text-blue-300"
                   >
                     {val === 0 ? '·' : val}
                   </div>
@@ -355,7 +379,7 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-[var(--text-primary,#f1f0fe)]">Goal Target</h3>
-                  <p className="text-xs text-white/70 mt-2">Reach solution in ≤ target moves using A* optimal path</p>
+                  <p className="text-xs text-white/70 mt-2">Reach solution in ≤ {optimalMoves} moves using A* algorithm</p>
                 </div>
               </div>
             </div>
