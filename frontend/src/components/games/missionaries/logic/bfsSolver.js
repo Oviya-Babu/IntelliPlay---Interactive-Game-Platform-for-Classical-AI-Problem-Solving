@@ -112,7 +112,14 @@ export function getNextFromPath(path, currentState) {
 
 export function getHintFromPath(path, currentState) {
   const result = getNextFromPath(path, currentState);
-  if (!result) return { missionaries: 0, cannibals: 0 };
+  if (!result || !result.move) return { missionaries: 0, cannibals: 0 };
+  
+  // Validate move capacity (max 2 total)
+  const totalPeople = result.move.m + result.move.c;
+  if (totalPeople < 1 || totalPeople > 2) {
+    return { missionaries: 0, cannibals: 0 }; // Invalid move, fallback
+  }
+  
   return {
     missionaries: result.move.m,
     cannibals: result.move.c,
