@@ -68,16 +68,22 @@ export default function MissionariesGame() {
 
   const fearSide = getFearSide();
 
-  // Compute hints using precomputed path
+  // Compute hints using precomputed path (only when not animating to avoid intermediate states)
   useEffect(() => {
-    if (showHints && gameStatus === 'playing') {
+    if (showHints && gameStatus === 'playing' && !isAnimating) {
       const state = getStateFromCharacters(characters, boatSide);
       const hint = getHintFromPath(optimalPathRef.current, state);
+      // Ensure hint never exceeds boat capacity (max 2 total)
+      if (hint && (hint.missionaries + hint.cannibals) > 2) {
+        // Cap to 2 max, prioritizing missionaries
+        const excess = (hint.missionaries + hint.cannibals) - 2;
+        hint.cannibals = Math.max(0, hint.cannibals - excess);
+      }
       setHintChars(hint);
-    } else {
+    } else if (!showHints) {
       setHintChars(null);
     }
-  }, [showHints, characters, boatSide, gameStatus]);
+  }, [showHints, boatSide, gameStatus, isAnimating]);
 
   const addMessage = useCallback((text, type = 'info') => {
     setMessages(prev => [...prev.slice(-19), { text, type, id: Date.now() }]);
@@ -272,15 +278,25 @@ export default function MissionariesGame() {
   }, [characters, passengers, boatSide]);
 
   const isHinted = useCallback((char) => {
-    if (!showHints || !hintChars || gameStatus !== 'playing') return false;
+    if (!showHints || !hintChars || gameStatus !== 'playing' || isAnimating) return false;
     if (char.side !== boatSide) return false;
-    const onSide = characters.filter(
+    
+    const isMissionary = char.type === 'missionary';
+    const needed = isMissionary ? hintChars.missionaries : hintChars.cannibals;
+    
+    // Ensure we never highlight more than needed
+    if (needed === 0) return false;
+    
+    // Get only characters of this type on the current boat side (not already boarded)
+    const sameTypeOnSide = characters.filter(
       c => c.type === char.type && c.side === boatSide && !passengers.includes(c.id)
     );
-    const idx = onSide.findIndex(c => c.id === char.id);
-    const needed = char.type === 'missionary' ? hintChars.missionaries : hintChars.cannibals;
-    return idx < needed;
-  }, [showHints, hintChars, gameStatus, boatSide, characters, passengers]);
+    
+    const idx = sameTypeOnSide.findIndex(c => c.id === char.id);
+    
+    // Strictly limit: only highlight exactly what's needed (max 1 of each type per move)
+    return idx >= 0 && idx < needed && needed <= 2;
+  }, [showHints, hintChars, gameStatus, boatSide, characters, passengers, isAnimating]);
 
   const boatX = boatSide === 'left' ? 30 : 58;
 
