@@ -23,6 +23,22 @@ interface GameState {
   firstBacktrackSeen: boolean
   firstConflictSeen: boolean
   firstPlacementSeen: boolean
+  conflictingQueens: Array<{ row: number; col: number }> // Conflicting queen positions
+}
+
+interface Particle {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  w: number
+  h: number
+  color: string
+  rotation: number
+  rotSpeed: number
+  gravity: number
+  opacity: number
+  decay: number
 }
 
 const CONFIG = {
@@ -193,12 +209,16 @@ export default function NQueens() {
     firstBacktrackSeen: false,
     firstConflictSeen: false,
     firstPlacementSeen: false,
+    conflictingQueens: [],
   })
 
   const [messages, setMessages] = useState<Message[]>([])
-  const [currentFact, setCurrentFact] = useState(CONFIG.FACTS_POOL[0])
-  const factQueueRef = useRef([...Array(CONFIG.FACTS_POOL.length).keys()])
-  const playbackTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const currentFact = CONFIG.FACTS_POOL[0]
+  const playbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const conflictCanvasRef = useRef<HTMLCanvasElement>(null)
+  const confettiCanvasRef = useRef<HTMLCanvasElement>(null)
+  const particlesRef = useRef<Particle[]>([])
+  const confettiAnimIdRef = useRef<number | null>(null)
 
   const addMessage = useCallback((msg: Message) => {
     setMessages((prev) => [...prev, msg])
@@ -206,43 +226,169 @@ export default function NQueens() {
 
   const getColLetter = (col: number) => String.fromCharCode(65 + col)
 
-  const checkConflict = useCallback((board: number[], row: number, col: number) => {
-    const conflicts: Array<{ row: number; col: number; reason: string }> = []
-    for (let i = 0; i < row; i++) {
-      if (board[i] === -1) continue
-      if (board[i] === col) {
-        conflicts.push({ row: i, col: board[i], reason: 'column' })
+  // ─── CONFETTI SYSTEM ───────────────────────────────────────
+  const launchConfetti = useCallback((count: number = 150) => {
+    if (!confettiCanvasRef.current) return
+    const canvas = confettiCanvasRef.current
+    const colors = ['#818cf8', '#6366f1', '#34d399', '#fbbf24', '#f87171']
+
+    for (let i = 0; i < count; i++) {
+      particlesRef.current.push({
+        x: Math.random() * window.innerWidth,
+        y: -20,
+        vx: (Math.random() - 0.5) * 6,
+        vy: 2 + Math.random() * 4,
+        w: 8 + Math.random() * 4,
+        h: 8 + Math.random() * 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * 360,
+        rotSpeed: (Math.random() - 0.5) * 12,
+        gravity: 0.3 + Math.random() * 0.15,
+        opacity: 1,
+        decay: 0.003 + Math.random() * 0.004,
+      })
+    }
+
+    const animateConfetti = () => {
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      particlesRef.current = particlesRef.current.filter((p) => p.opacity > 0.01)
+
+      for (const p of particlesRef.current) {
+        p.x += p.vx
+        p.y += p.vy
+        p.vy += p.gravity
+        p.vx *= 0.99
+        p.rotation += p.rotSpeed
+        p.opacity -= p.decay
+
+        ctx.save()
+        ctx.translate(p.x, p.y)
+        ctx.rotate((p.rotation * Math.PI) / 180)
+        ctx.globalAlpha = Math.max(0, p.opacity)
+        ctx.fillStyle = p.color
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h)
+        ctx.restore()
       }
-      if (Math.abs(board[i] - col) === Math.abs(i - row)) {
-        conflicts.push({ row: i, col: board[i], reason: 'diagonal' })
+
+      if (particlesRef.current.length > 0) {
+        confettiAnimIdRef.current = requestAnimationFrame(animateConfetti)
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
       }
     }
-    return conflicts
+
+    animateConfetti()
   }, [])
+
+  // ─── CONFLICT DRAWING ───────────────────────────────────────
+  const drawConflictLine = useCallback(
+    (fromRow: number, fromCol: number, toRow: number, toCol: number) => {
+      if (!conflictCanvasRef.current) return
+      const ctx = conflictCanvasRef.current.getContext('2d')
+      if (!ctx) return
+
+      const boardElement = document.querySelector('.board')
+      if (!boardElement) return
+
+      const cellSize = boardElement.getBoundingClientRect().width / gameState.n
+      const x1 = fromCol * cellSize + cellSize / 2
+      const y1 = fromRow * cellSize + cellSize / 2
+      const x2 = toCol * cellSize + cellSize / 2
+      const y2 = toRow * cellSize + cellSize / 2
+
+      // Glow layer
+      ctx.save()
+      ctx.strokeStyle = 'rgba(248, 113, 113, 0.15)'
+      ctx.lineWidth = 10
+      ctx.lineCap = 'round'
+      ctx.beginPath()
+      ctx.moveTo(x1, y1)
+      ctx.lineTo(x2, y2)
+      ctx.stroke()
+      ctx.restore()
+
+      // Main dashed line
+      ctx.save()
+      ctx.strokeStyle = 'rgba(248, 113, 113, 0.7)'
+      ctx.lineWidth = 2.5
+      ctx.lineCap = 'round'
+      ctx.setLineDash([6, 4])
+      ctx.beginPath()
+      ctx.moveTo(x1, y1)
+      ctx.lineTo(x2, y2)
+      ctx.stroke()
+      ctx.setLineDash([])
+      ctx.restore()
+
+      // Endpoints
+      ;[
+        { x: x1, y: y1 },
+        { x: x2, y: y2 },
+      ].forEach((p) => {
+        ctx.save()
+        ctx.fillStyle = 'rgba(248, 113, 113, 0.6)'
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.restore()
+      })
+    },
+    [gameState.n],
+  )
+
+  const clearConflictCanvas = useCallback(() => {
+    if (!conflictCanvasRef.current) return
+    const ctx = conflictCanvasRef.current.getContext('2d')
+    if (ctx) {
+      ctx.clearRect(0, 0, conflictCanvasRef.current.width, conflictCanvasRef.current.height)
+    }
+  }, [])
+
+  
+  // Keep these for future use
 
   const handleCellClick = useCallback(
     (row: number, col: number) => {
       if (gameState.mode !== 'manual' || gameState.isPlaying) return
 
       const newBoard = [...gameState.board]
-      const conflicts = checkConflict(newBoard, row, col)
 
       if (newBoard[row] === col) {
+        // Removing queen
         newBoard[row] = -1
         setGameState((prev) => ({
           ...prev,
           board: newBoard,
           queensPlaced: prev.queensPlaced - 1,
           hintCell: null,
+          conflictingQueens: [],
         }))
+        clearConflictCanvas()
         addMessage({
           type: 'system',
           text: `Removed queen from Row ${row + 1}, Col ${getColLetter(col)}.`,
         })
-      } else if (conflicts.length === 0) {
+      } else {
+        // Placing queen
         newBoard[row] = col
         const newQueensPlaced = newBoard.filter((c) => c !== -1).length
-        const isValid = newQueensPlaced === gameState.n && newBoard.every((c) => c !== -1)
+
+        // Find all conflicting queens
+        const conflicting: Array<{ row: number; col: number }> = []
+        for (let r = 0; r < gameState.n; r++) {
+          if (newBoard[r] === -1 || r === row) continue
+          if (newBoard[r] === col) {
+            conflicting.push({ row: r, col: newBoard[r] })
+          }
+          if (Math.abs(newBoard[r] - col) === Math.abs(r - row)) {
+            conflicting.push({ row: r, col: newBoard[r] })
+          }
+        }
+
+        const isValid = newQueensPlaced === gameState.n && conflicting.length === 0
 
         setGameState((prev) => ({
           ...prev,
@@ -250,41 +396,60 @@ export default function NQueens() {
           queensPlaced: newQueensPlaced,
           isSolved: isValid,
           hintCell: null,
+          conflictingQueens: conflicting,
         }))
 
-        addMessage({
-          type: 'success',
-          text: `♛ Queen placed at Row ${row + 1}, Col ${getColLetter(col)}. <span style="opacity:0.6">(${newQueensPlaced}/${gameState.n})</span>`,
-        })
+        if (conflicting.length > 0) {
+          // Show red lines
+          clearConflictCanvas()
+          for (const conflict of conflicting) {
+            drawConflictLine(conflict.row, conflict.col, row, col)
+          }
 
-        if (isValid) {
+          const details = conflicting
+            .map((c) => {
+              const cColL = getColLetter(c.col)
+              if (c.col === col) {
+                return `Row ${c.row + 1} (same column)`
+              } else {
+                return `Row ${c.row + 1}, Col ${cColL} (diagonal)`
+              }
+            })
+            .join('; ')
+
+          addMessage({
+            type: 'danger',
+            text: `⚠️ <b>Conflict!</b> Red lines show which queens attack this position: ${details}`,
+          })
+        } else {
+          clearConflictCanvas()
           addMessage({
             type: 'success',
-            text: `🔥 <b>Perfect!</b> You solved the ${gameState.n}-Queens puzzle!<br>This is exactly how backtracking works — trying, validating, and correcting until a valid solution is found.`,
+            text: `✅ Queen placed at Row ${row + 1}, Col ${getColLetter(col)}. <span style="opacity:0.6">(${newQueensPlaced}/${gameState.n})</span>`,
           })
         }
-      } else {
-        const details = conflicts
-          .map((c) => {
-            const cColL = getColLetter(c.col)
-            return c.reason === 'column'
-              ? `Row ${c.row + 1} (same column)`
-              : `Row ${c.row + 1}, Col ${cColL} (diagonal)`
+
+        if (isValid) {
+          // SHOW CELEBRATION!
+          setTimeout(() => {
+            launchConfetti(150)
+          }, 200)
+
+          addMessage({
+            type: 'success',
+            text: `🔥 <b>PERFECT!</b> You solved the ${gameState.n}-Queens puzzle! All queens placed safely!`,
           })
-          .join('; ')
-        addMessage({
-          type: 'danger',
-          text: `⚠️ <b>Unsafe position!</b> Row ${row + 1}, Col ${getColLetter(col)} conflicts with: ${details}`,
-        })
+        }
       }
     },
-    [gameState, checkConflict, addMessage],
+    [gameState, drawConflictLine, clearConflictCanvas, launchConfetti, addMessage],
   )
 
   const handleAutoSolve = useCallback(() => {
     if (gameState.isPlaying) return
 
     setMessages([])
+    clearConflictCanvas()
     const steps = generateSteps(gameState.n)
     const newBoard = new Array(gameState.n).fill(-1)
 
@@ -298,14 +463,12 @@ export default function NQueens() {
       queensPlaced: 0,
       totalSteps: 0,
       totalBacktracks: 0,
+      conflictingQueens: [],
     }))
 
     addMessage({
       type: 'info',
-      text:
-        gameState.mode === 'learn'
-          ? `📚 <b>Welcome to Learn Mode!</b> I'll teach you how <b>Backtracking</b> solves the ${gameState.n}-Queens problem.`
-          : `🤖 <b>AI Solve Mode</b> — I'll solve the ${gameState.n}-Queens problem using <b>Backtracking</b>. Watch every step!`,
+      text: `🤖 <b>AI Solving ${gameState.n}-Queens...</b> Watch the backtracking algorithm solve this step by step!`,
     })
 
     let currentIdx = 0
@@ -318,7 +481,7 @@ export default function NQueens() {
         if (step.type === 'enter-row') {
           stepMsgs.push({
             type: 'info',
-            text: `➡️ Moving to <b>Row ${step.row + 1}</b>. Scanning for a safe column...`,
+            text: `📍 <b>Checking Row ${step.row + 1}:</b> Scanning columns for a safe position...`,
           })
         } else if (step.type === 'try') {
           stepMsgs.push({
@@ -334,30 +497,35 @@ export default function NQueens() {
           const conflictColL = step.board[step.conflictRow] !== -1 ? getColLetter(step.board[step.conflictRow]) : '?'
           if (step.conflictReason === 'column') {
             stepMsgs.push({
-              type: 'danger',
-              text: `❌ <b>Rejected</b> — column ${getColLetter(step.col)} blocked by queen at Row ${step.conflictRow + 1}.`,
+              type: 'warning',
+              text: `❌ <b>Column conflict!</b> Column ${getColLetter(step.col)} has a queen at Row ${step.conflictRow + 1}. Trying next...`,
             })
           } else {
             stepMsgs.push({
-              type: 'danger',
-              text: `❌ <b>Rejected</b> — diagonal conflict with queen at Row ${step.conflictRow + 1}, Col ${conflictColL}.`,
+              type: 'warning',
+              text: `❌ <b>Diagonal conflict!</b> Would attack queen at Row ${step.conflictRow + 1}, Col ${conflictColL}. Trying next...`,
             })
           }
         } else if (step.type === 'backtrack') {
           stepMsgs.push({
             type: 'danger',
-            text: `↩️ <b>Backtracking!</b> Removing queen from Row ${step.row + 1}, Col ${getColLetter(step.col)}.`,
+            text: `↩️ <b>Dead end!</b> Removing queen from Row ${step.row + 1}, Col ${getColLetter(step.col)} and backtracking...`,
           })
         } else if (step.type === 'exhausted') {
           stepMsgs.push({
             type: 'warning',
-            text: `🚫 Row ${step.row + 1} exhausted — all columns failed. Going back up...`,
+            text: `🚫 All columns in Row ${step.row + 1} failed. Backtracking further up...`,
           })
         } else if (step.type === 'solution') {
           stepMsgs.push({
             type: 'success',
-            text: `🔥 <b>SOLUTION FOUND!</b> All ${gameState.n} queens placed safely!<br><br>This is exactly how backtracking works — trying, validating, and correcting until a valid solution is found.`,
+            text: `🔥 <b>SOLUTION FOUND!</b> All ${gameState.n} queens placed successfully!`,
           })
+
+          // Show celebration!
+          setTimeout(() => {
+            launchConfetti(150)
+          }, 300)
         }
 
         setGameState((prev) => ({
@@ -382,7 +550,7 @@ export default function NQueens() {
     }
 
     playStep()
-  }, [gameState, addMessage])
+  }, [gameState, addMessage, clearConflictCanvas, launchConfetti])
 
   const handleHint = useCallback(() => {
     if (gameState.mode !== 'manual' || gameState.isPlaying) return
@@ -392,12 +560,12 @@ export default function NQueens() {
       setGameState((prev) => ({ ...prev, hintCell: hint }))
       addMessage({
         type: 'hint',
-        text: `💡 Try placing a queen at <b>Row ${hint.row + 1}, Col ${getColLetter(hint.col)}</b> — it keeps all constraints satisfied and leads to a valid solution.`,
+        text: `💡 <b>Hint:</b> Try Row ${hint.row + 1}, Col ${getColLetter(hint.col)} — it leads to a valid solution. (This is just a suggestion!)`,
       })
     } else {
       addMessage({
         type: 'warning',
-        text: `💡 No valid hint available. The current board state may have conflicts — try removing some queens and rearranging.`,
+        text: `💡 <b>No valid hint available.</b> Your current board state may have conflicts or wrong placements. Try removing some queens and rearranging!`,
       })
     }
   }, [gameState, addMessage])
@@ -406,6 +574,11 @@ export default function NQueens() {
     if (playbackTimeoutRef.current) {
       clearTimeout(playbackTimeoutRef.current)
     }
+    if (confettiAnimIdRef.current) {
+      cancelAnimationFrame(confettiAnimIdRef.current)
+    }
+    clearConflictCanvas()
+    particlesRef.current = []
 
     setGameState({
       n: gameState.n,
@@ -424,14 +597,20 @@ export default function NQueens() {
       firstBacktrackSeen: false,
       firstConflictSeen: false,
       firstPlacementSeen: false,
+      conflictingQueens: [],
     })
     setMessages([])
-  }, [gameState])
+  }, [gameState, clearConflictCanvas])
 
   const handleBoardSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (playbackTimeoutRef.current) {
       clearTimeout(playbackTimeoutRef.current)
     }
+    if (confettiAnimIdRef.current) {
+      cancelAnimationFrame(confettiAnimIdRef.current)
+    }
+    clearConflictCanvas()
+    particlesRef.current = []
 
     const newN = parseInt(e.target.value)
     setGameState({
@@ -451,6 +630,7 @@ export default function NQueens() {
       firstBacktrackSeen: false,
       firstConflictSeen: false,
       firstPlacementSeen: false,
+      conflictingQueens: [],
     })
     setMessages([])
   }
@@ -459,6 +639,11 @@ export default function NQueens() {
     if (playbackTimeoutRef.current) {
       clearTimeout(playbackTimeoutRef.current)
     }
+    if (confettiAnimIdRef.current) {
+      cancelAnimationFrame(confettiAnimIdRef.current)
+    }
+    clearConflictCanvas()
+    particlesRef.current = []
 
     setGameState({
       n: gameState.n,
@@ -477,6 +662,7 @@ export default function NQueens() {
       firstBacktrackSeen: false,
       firstConflictSeen: false,
       firstPlacementSeen: false,
+      conflictingQueens: [],
     })
     setMessages([])
   }
@@ -486,13 +672,64 @@ export default function NQueens() {
       if (playbackTimeoutRef.current) {
         clearTimeout(playbackTimeoutRef.current)
       }
+      if (confettiAnimIdRef.current) {
+        cancelAnimationFrame(confettiAnimIdRef.current)
+      }
     }
   }, [])
+
+  // Setup canvas sizes
+  useEffect(() => {
+    const handleResize = () => {
+      if (conflictCanvasRef.current) {
+        const board = document.querySelector('.board')
+        if (board) {
+          const rect = board.getBoundingClientRect()
+          conflictCanvasRef.current.width = rect.width
+          conflictCanvasRef.current.height = rect.height
+          conflictCanvasRef.current.style.left = rect.left + 'px'
+          conflictCanvasRef.current.style.top = rect.top + 'px'
+        }
+      }
+
+      if (confettiCanvasRef.current) {
+        confettiCanvasRef.current.width = window.innerWidth
+        confettiCanvasRef.current.height = window.innerHeight
+      }
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [gameState.n])
+
+  // Update board element classes
+  useEffect(() => {
+    const board = document.querySelector('.board')
+    if (!board) return
+
+    if (gameState.isSolved) {
+      board.classList.add('board-solved')
+    } else {
+      board.classList.remove('board-solved')
+    }
+  }, [gameState.isSolved])
 
   return (
     <div className="nqueens-container">
       <div className="bg-gradient"></div>
       <div className="bg-grid"></div>
+      
+      <canvas
+        ref={confettiCanvasRef}
+        className="confetti-canvas"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 100,
+          pointerEvents: 'none',
+        }}
+      />
 
       {/* Header */}
       <div className="nq-header">
@@ -569,6 +806,13 @@ export default function NQueens() {
 
           {/* Board Grid */}
           <div className="board-wrapper">
+            <canvas
+              ref={conflictCanvasRef}
+              className="conflict-canvas"
+              style={{
+                position: 'absolute',
+              }}
+            />
             <div 
               className="board"
               style={{
@@ -579,25 +823,25 @@ export default function NQueens() {
               }}
             >
               {Array.from({ length: gameState.n }).map((_, row) =>
-                Array.from({ length: gameState.n }).map((_, col) => (
-                  <div
-                    key={`${row}-${col}`}
-                    className={`board-cell ${(row + col) % 2 === 0 ? 'light' : ''} ${
-                      gameState.board[row] === col ? 'has-queen' : ''
-                    } ${gameState.hintCell?.row === row && gameState.hintCell?.col === col ? 'hint' : ''}`}
-                    onClick={() => handleCellClick(row, col)}
-                    title={`Row ${row + 1}, Column ${getColLetter(col)}`}
-                  >
-                    {gameState.board[row] === col && (
-                      <div className="queen">
-                        ♛
-                      </div>
-                    )}
-                    {gameState.hintCell?.row === row &&
-                      gameState.hintCell?.col === col &&
-                      gameState.board[row] !== col && <div className="hint-indicator">💡</div>}
-                  </div>
-                ))
+                Array.from({ length: gameState.n }).map((_, col) => {
+                  const hasConflict = gameState.conflictingQueens.some(c => c.row === row && c.col === gameState.board[row])
+                  return (
+                    <div
+                      key={`${row}-${col}`}
+                      className={`board-cell ${(row + col) % 2 === 0 ? 'light' : ''} ${
+                        gameState.board[row] === col ? 'has-queen' : ''
+                      } ${hasConflict ? 'conflict-cell' : ''} ${gameState.isSolved ? 'solution-cell' : ''}`}
+                      onClick={() => handleCellClick(row, col)}
+                      title={`Row ${row + 1}, Column ${getColLetter(col)}`}
+                    >
+                      {gameState.board[row] === col && (
+                        <div className={`queen ${hasConflict ? 'conflicted' : ''} ${gameState.isSolved ? 'solved-queen' : ''}`}>
+                          ♛
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
               )}
             </div>
           </div>
@@ -608,9 +852,10 @@ export default function NQueens() {
               <button
                 className="ctrl-btn primary"
                 onClick={handleAutoSolve}
-                disabled={gameState.isPlaying || gameState.isSolved}
+                disabled={gameState.isPlaying || gameState.isSolved || gameState.mode === 'manual'}
+                title={gameState.mode === 'manual' ? 'Use AI Tutor or Learn mode to watch the algorithm' : ''}
               >
-                ▶ Start
+                ▶ {gameState.mode === 'manual' ? 'Solve (AI Tutor)' : 'Start'}
               </button>
               <button className="ctrl-btn" disabled={!gameState.isPlaying}>
                 ⏸ Pause
