@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import TicTacToe from '@/components/games/TicTacToe'
 import EightPuzzleNew from '@/components/games/EightPuzzleNew'
 import MissionariesGame from '@/components/games/missionaries/MissionariesGame'
-import NQueens from '@/components/games/NQueens'
+import NQueensGame from '@/components/games/nqueens/NQueensGame'
 import Cryptarithmetic from '@/components/games/Cryptarithmetic'
 
 /* Back button shown on non-TicTacToe games (TicTacToe has its own full layout) */
@@ -32,13 +32,17 @@ export default function GamePage() {
     return <TicTacToe />
   }
 
+  // NQueens manages its own full-viewport layout
+  if (gameId === 'nqueens') {
+    return <NQueensGame />
+  }
+
   return (
     <>
       <BackButton />
       <div className={shellClass}>
         {gameId === 'eightpuzzle' && <EightPuzzleNew />}
         {gameId === 'missionaries' && <MissionariesGame />}
-        {gameId === 'nqueens' && <NQueens />}
         {gameId === 'cryptarith' && <Cryptarithmetic />}
       </div>
     </>
