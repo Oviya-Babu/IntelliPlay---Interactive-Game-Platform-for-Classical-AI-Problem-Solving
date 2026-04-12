@@ -752,37 +752,61 @@
   font-weight: 500;
 }
 
-/* Algorithm State */
-.nq-algo-state { flex-shrink: 0; }
+/* How to Play */
+.nq-howtoplay {
+  flex-shrink: 0;
+  padding: 8px 10px;
+}
 
-.nq-algo-header {
+.nq-howtoplay-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
-  margin-bottom: 8px;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.nq-algo-icon { font-size: 13px; }
+.nq-howtoplay-icon { font-size: 12px; }
 
-.nq-algo-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 5px;
-}
-
-.nq-algo-item {
+.nq-howtoplay-list {
+  margin: 0;
+  padding: 0 0 0 16px;
+  list-style: disc;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 5px 7px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: var(--radius-sm);
 }
 
-.nq-algo-key {
+.nq-howtoplay-list li {
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/* Algorithm State (Compact Footer) */
+.nq-algo-state-compact {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 0 15px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  height: 36px;
+  margin: 0 10px;
+}
+
+.nq-algo-item-mini {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nq-algo-label-mini {
   font-size: 9px;
   font-weight: 600;
   color: var(--text-muted);
@@ -790,11 +814,15 @@
   letter-spacing: 0.5px;
 }
 
-.nq-algo-val {
-  font-size: 13px;
+.nq-algo-val-mini {
+  font-size: 12px;
   font-weight: 700;
   color: var(--accent-light);
   font-family: var(--font-mono);
+}
+
+.nq-algo-item-mini.action-item {
+  min-width: 100px;
 }
 
 /* Messages */
@@ -825,10 +853,10 @@
 
 /* Message Bubbles */
 .nq-tutor-msg {
-  padding: 9px 12px;
+  padding: 16px 20px;
   border-radius: var(--radius-md);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.8;
   animation: nqMsgSlideIn 0.3s ease-out;
   border: 1px solid transparent;
   word-wrap: break-word;

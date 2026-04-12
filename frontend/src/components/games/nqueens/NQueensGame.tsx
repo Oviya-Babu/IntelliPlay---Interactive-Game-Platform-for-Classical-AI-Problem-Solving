@@ -222,6 +222,7 @@ export default function NQueensGame() {
             speed={engine.speed}
             hasSteps={engine.totalSteps > 0}
             stepsExhausted={false}
+            algoState={engine.algoState}
             onStart={engine.onStart}
             onPause={engine.onPause}
             onStep={engine.onStep}

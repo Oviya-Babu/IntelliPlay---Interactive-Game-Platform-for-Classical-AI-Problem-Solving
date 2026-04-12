@@ -3,7 +3,7 @@
    ============================================ */
 
 import { memo } from 'react';
-import type { GameMode } from './utils/nqueensHelpers';
+import type { GameMode, AlgoState } from './utils/nqueensHelpers';
 
 interface ControlsProps {
   mode: GameMode;
@@ -13,6 +13,7 @@ interface ControlsProps {
   speed: number;
   hasSteps: boolean;
   stepsExhausted: boolean;
+  algoState: AlgoState;
   onStart: () => void;
   onPause: () => void;
   onStep: () => void;
@@ -29,6 +30,7 @@ function ControlsComponent({
   speed,
   hasSteps,
   stepsExhausted,
+  algoState,
   onStart,
   onPause,
   onStep,
@@ -109,6 +111,22 @@ function ControlsComponent({
           <span className="nq-ctrl-icon">↺</span>
           <span className="nq-ctrl-text">Reset</span>
         </button>
+      </div>
+
+      {/* Algorithm State (Compact Footer Version) */}
+      <div className="nq-algo-state-compact">
+        <div className="nq-algo-item-mini">
+          <span className="nq-algo-label-mini">Row</span>
+          <span className="nq-algo-val-mini">{algoState.row}</span>
+        </div>
+        <div className="nq-algo-item-mini">
+          <span className="nq-algo-label-mini">Col</span>
+          <span className="nq-algo-val-mini">{algoState.col}</span>
+        </div>
+        <div className="nq-algo-item-mini action-item">
+          <span className="nq-algo-label-mini">Action</span>
+          <span className="nq-algo-val-mini">{algoState.action}</span>
+        </div>
       </div>
 
       <div className="nq-controls-right">
