@@ -75,30 +75,18 @@ function AITutorPanelComponent({
         </div>
       </div>
 
-      {/* ─── ALGORITHM STATE ─── */}
-      <div className="nq-glass-card nq-algo-state">
-        <div className="nq-algo-header">
-          <span className="nq-algo-icon">⚙️</span>
-          <span>Algorithm State</span>
+      {/* ─── HOW TO PLAY ─── */}
+      <div className="nq-glass-card nq-howtoplay">
+        <div className="nq-howtoplay-header">
+          <span className="nq-howtoplay-icon">📋</span>
+          <span>How to Play</span>
         </div>
-        <div className="nq-algo-body">
-          <div className="nq-algo-item">
-            <span className="nq-algo-key">Current Row</span>
-            <span className="nq-algo-val">{algoState.row}</span>
-          </div>
-          <div className="nq-algo-item">
-            <span className="nq-algo-key">Current Col</span>
-            <span className="nq-algo-val">{algoState.col}</span>
-          </div>
-          <div className="nq-algo-item">
-            <span className="nq-algo-key">Action</span>
-            <span className="nq-algo-val">{algoState.action}</span>
-          </div>
-          <div className="nq-algo-item">
-            <span className="nq-algo-key">Queens Safe</span>
-            <span className="nq-algo-val">{algoState.queens}</span>
-          </div>
-        </div>
+        <ul className="nq-howtoplay-list">
+          <li>Place one queen per row</li>
+          <li>No two queens can be in the same column</li>
+          <li>No two queens can be on the same diagonal</li>
+          <li>Goal: Place N queens safely on the board</li>
+        </ul>
       </div>
 
       {/* ─── MESSAGES ─── */}
