@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import ComplexityInsights from '@/components/learn/ComplexityInsights';
 
 export default function AIPanel({ messages, learningMode, moveLog }) {
   const [showAlgo, setShowAlgo] = useState(false);
@@ -42,6 +43,9 @@ export default function AIPanel({ messages, learningMode, moveLog }) {
           ))}
         </div>
       )}
+
+      {/* Complexity Insights */}
+      <ComplexityInsights gameId="missionaries" variant="inline-styled" />
 
       {/* BFS Algorithm Explainer */}
       <button className="ai-algo-btn" onClick={() => setShowAlgo(s => !s)}>

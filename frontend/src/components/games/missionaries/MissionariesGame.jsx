@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { checkWin, getStateFromCharacters, checkGameOver } from './logic/gameRules';
 import { solve, computeOptimalPath, getNextFromPath, getHintFromPath, explainMove, explainWhySafe, generateAITeaching } from './logic/bfsSolver';
+import { useComplexityStore } from '@/store/complexityStore';
 import River from './River';
 import Boat from './Boat';
 import Character from './Character';
@@ -151,6 +152,13 @@ export default function MissionariesGame() {
     const newMoveCount = curMoveCount + 1;
     setMoveCount(newMoveCount);
 
+    // Update complexity metrics
+    const cs = useComplexityStore.getState();
+    cs.incrementNodes();
+    cs.incrementStates();
+    cs.setDepth(newMoveCount);
+    cs.updateElapsedTime();
+
     const moveDesc = `${moveLabel} → ${newSide}`;
     setMoveHistory(prev => [...prev, { desc: moveDesc, state: newState }]);
     addMessage(`✅ Move ${newMoveCount}: ${moveDesc}`, 'success');
@@ -204,6 +212,8 @@ export default function MissionariesGame() {
     setUnsafeSide(null);
     // Recompute path on reset
     optimalPathRef.current = computeOptimalPath();
+    // Reset complexity metrics
+    useComplexityStore.getState().startTracking('missionaries');
     setMessages([{
       text: '🔄 Game reset!\n👆 Click characters to board, then press GO.\n🎯 Keep humans safe!',
       type: 'info'
@@ -221,6 +231,8 @@ export default function MissionariesGame() {
     setAutoSolving(true);
     autoSolveRef.current = true;
     addMessage('🤖 Auto-solving with BFS...', 'info');
+    // Start complexity tracking for auto-solve
+    useComplexityStore.getState().startTracking('missionaries');
 
     let localChars = [...charsRef.current.map(c => ({ ...c }))];
     let localBoat = boatRef.current;

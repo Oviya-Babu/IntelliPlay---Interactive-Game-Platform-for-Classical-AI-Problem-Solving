@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import type { BotMetrics, ChatMessage, SolverStep } from './types';
 import { getLevelExplanation } from './utils';
+import ComplexityInsights from '@/components/learn/ComplexityInsights';
 
 interface TutorPanelProps {
   level: number;
@@ -217,6 +218,11 @@ export default function TutorPanel({
             ))}
           </div>
         )}
+      </div>
+
+      {/* Complexity Insights */}
+      <div style={{ padding: '8px 16px' }}>
+        <ComplexityInsights gameId="cryptarith" variant="inline-styled" />
       </div>
 
       {/* Metrics Grid */}

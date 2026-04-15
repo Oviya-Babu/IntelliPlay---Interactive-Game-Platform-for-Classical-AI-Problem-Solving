@@ -5,7 +5,9 @@ import { Button, Badge } from '@/components/ui'
 import { gameService } from '@/services/gameService'
 import { useAIStream } from '@/hooks/useAIStream'
 import TutorPanel from '@/components/learn/TutorPanel'
+import ComplexityInsights from '@/components/learn/ComplexityInsights'
 import { useGameStore } from '@/store/gameStore'
+import { useComplexityStore } from '@/store/complexityStore'
 import { useProgressStore } from '@/store/progressStore'
 import { calcScore, calcStars } from '@/utils/starCalculator'
 import HowToPlay from '@/components/learn/HowToPlay'
@@ -117,6 +119,12 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
         setMoveCount(i)
         setCurrentExplanation(step.explanation || '')
         setCurrentStepIndex(i)
+        // Update complexity metrics during AI playback
+        const cs = useComplexityStore.getState();
+        cs.incrementNodes();
+        cs.incrementStates();
+        cs.setDepth(i + 1);
+        cs.updateElapsedTime();
       }
 
       playbackIndexRef.current = i + 1
@@ -313,6 +321,8 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
     setCurrentExplanation('Fetching optimal solution from AI...')
     setIsPaused(false)
     setAiSolving(true)
+    // Start complexity tracking
+    useComplexityStore.getState().startTracking('eightpuzzle');
   }, [sessionId, aiSolving])
 
   const handleSpeedChange = (speed: number) => {
@@ -578,6 +588,9 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
                         <li>• Each step reduces total cost</li>
                       </ul>
                     </div>
+
+                    {/* Complexity Insights */}
+                    <ComplexityInsights gameId="eightpuzzle" variant="tailwind" />
                   </div>
                 </div>
               </div>
