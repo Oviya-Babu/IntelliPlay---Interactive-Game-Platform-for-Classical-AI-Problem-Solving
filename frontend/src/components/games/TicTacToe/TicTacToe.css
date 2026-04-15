@@ -1,0 +1,898 @@
+/* ═══════════════════════════════════════════════════════════
+   TicTacToe — Resizable Split Layout + AI Tutor Panel
+   Uses IntelliPlay design tokens from globals.css
+   CONTINUOUS FLOW: One scrollable teaching dashboard
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── Resizable Split Container ─────────────────────────── */
+
+.ttt-split-container {
+  display: grid;
+  grid-template-columns: var(--left-width, 60%) 6px 1fr;
+  height: calc(100vh - 60px);
+  width: 100%;
+  background: var(--bg-base, #08080f);
+  color: var(--text-primary, #f1f0fe);
+  overflow: hidden;
+}
+
+/* ─── Left Panel (Board) ────────────────────────────────── */
+
+.ttt-board-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-width: 380px;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.ttt-board-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ttt-board-glow-orb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: rgba(124, 58, 237, 0.04);
+  filter: blur(100px);
+}
+
+/* ─── Drag Divider ──────────────────────────────────────── */
+
+.ttt-divider {
+  width: 6px;
+  cursor: col-resize;
+  background: var(--border-subtle, #1e1e35);
+  position: relative;
+  transition: background 0.2s ease;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ttt-divider:hover,
+.ttt-divider.dragging {
+  background: var(--accent, #7c3aed);
+}
+
+.ttt-divider-handle {
+  width: 3px;
+  height: 40px;
+  border-radius: 3px;
+  background: var(--text-muted, #605e80);
+  transition: background 0.2s ease, height 0.2s ease;
+}
+
+.ttt-divider:hover .ttt-divider-handle,
+.ttt-divider.dragging .ttt-divider-handle {
+  background: #fff;
+  height: 56px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RIGHT PANEL — AI TUTOR (Continuous Scroll)
+   ═══════════════════════════════════════════════════════════ */
+
+.ttt-tutor-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-surface, #0f0f1a);
+  border-left: 1px solid var(--border-subtle, #1e1e35);
+}
+
+/* ─── Sticky AlphaBot Header ────────────────────────────── */
+
+.ttt-tutor-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 14px 20px 12px;
+  background: var(--bg-surface, #0f0f1a);
+  border-bottom: 1px solid var(--border-subtle, #1e1e35);
+  flex-shrink: 0;
+}
+
+.ttt-tutor-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+
+.ttt-tutor-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #7c3aed, #3b82f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3);
+  flex-shrink: 0;
+}
+
+.ttt-tutor-name {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #f1f0fe);
+}
+
+.ttt-tutor-subtitle {
+  font-size: 11px;
+  color: var(--text-muted, #605e80);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.ttt-tutor-divider {
+  margin-top: 10px;
+  height: 1px;
+  background: linear-gradient(to right, rgba(124, 58, 237, 0.4), rgba(59, 130, 246, 0.2), transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SCROLLABLE CONTENT — Single continuous flow
+   Equal 16px gaps between all section cards
+   ═══════════════════════════════════════════════════════════ */
+
+.ttt-tutor-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  padding: 16px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ttt-tutor-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.ttt-tutor-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ttt-tutor-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-default, #2a2a4a);
+  border-radius: 9999px;
+}
+
+.ttt-tutor-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--accent, #7c3aed);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SECTION CARDS — Uniform design for all sections
+   Same padding, same border-radius, same visual weight
+   ═══════════════════════════════════════════════════════════ */
+
+.ttt-section-card {
+  background: var(--bg-surface-2, #16162a);
+  border: 1px solid var(--border-subtle, #1e1e35);
+  border-radius: 14px;
+  overflow: visible;
+  transition: border-color 0.25s ease;
+}
+
+/* ── HERO card — slightly elevated for AI Reasoning ────── */
+
+.ttt-section-card.hero {
+  border-color: rgba(124, 58, 237, 0.3);
+  box-shadow:
+    0 0 32px rgba(124, 58, 237, 0.08),
+    0 4px 20px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(
+    180deg,
+    rgba(124, 58, 237, 0.05) 0%,
+    var(--bg-surface-2, #16162a) 100%
+  );
+}
+
+/* ── Section Header — same for every card ──────────────── */
+
+.ttt-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary, #b0aed0);
+}
+
+.ttt-section-header-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.ttt-section-badge {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: rgba(124, 58, 237, 0.12);
+  color: var(--accent-light, #a78bfa);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ttt-section-badge.live {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--success, #10b981);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AI REASONING BODY — Primary teaching area
+   Large, spacious, highly readable
+   ═══════════════════════════════════════════════════════════ */
+
+.ttt-explanation-body {
+  padding: 4px 20px 24px;
+}
+
+.ttt-explanation-structured {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ttt-explanation-block {
+  /* Individual explanation block */
+}
+
+.ttt-explanation-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  padding-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.ttt-explanation-label.thinking {
+  color: #818cf8;
+  border-bottom-color: rgba(129, 140, 248, 0.15);
+}
+
+.ttt-explanation-label.analysis {
+  color: #60a5fa;
+  border-bottom-color: rgba(96, 165, 250, 0.15);
+}
+
+.ttt-explanation-label.logic {
+  color: #a78bfa;
+  border-bottom-color: rgba(167, 139, 250, 0.15);
+}
+
+.ttt-explanation-label.decision,
+.ttt-explanation-label.result {
+  color: #10b981;
+  border-bottom-color: rgba(16, 185, 129, 0.15);
+}
+
+.ttt-explanation-label.welcome {
+  color: #f59e0b;
+  border-bottom-color: rgba(245, 158, 11, 0.15);
+}
+
+.ttt-explanation-content {
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--text-primary, #f1f0fe);
+  white-space: pre-line;
+  word-wrap: break-word;
+  font-family: var(--font-body, 'Inter', system-ui, sans-serif);
+}
+
+.ttt-inline-code {
+  background: rgba(124, 58, 237, 0.12);
+  color: #c4b5fd;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(124, 58, 237, 0.12);
+}
+
+.ttt-italic-note {
+  color: var(--text-muted, #8888a8);
+  font-style: italic;
+  font-size: 12.5px;
+}
+
+.ttt-final-move {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px 16px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--success, #10b981);
+  font-family: var(--font-mono, monospace);
+}
+
+.ttt-explanation-simple {
+  font-size: 15px;
+  line-height: 1.85;
+  color: var(--text-primary, #f1f0fe);
+  white-space: pre-line;
+  word-wrap: break-word;
+  font-family: var(--font-body, 'Inter', system-ui, sans-serif);
+}
+
+/* ─── Typewriter Cursor ─────────────────────────────────── */
+
+.ttt-typewriter {
+  display: inline;
+}
+
+.ttt-typewriter-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--accent, #7c3aed);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: ttt-cursor-blink 0.8s step-end infinite;
+}
+
+@keyframes ttt-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* ─── Mode Toggle ───────────────────────────────────────── */
+
+.ttt-mode-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-surface-3, #1e1e35);
+  border-radius: 10px;
+}
+
+.ttt-mode-btn {
+  flex: 1;
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #605e80);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  text-align: center;
+}
+
+.ttt-mode-btn:hover {
+  color: var(--text-secondary, #a09ec0);
+}
+
+.ttt-mode-btn.active-play {
+  background: rgba(124, 58, 237, 0.8);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(124, 58, 237, 0.3);
+}
+
+.ttt-mode-btn.active-learn {
+  background: rgba(234, 179, 8, 0.7);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(234, 179, 8, 0.25);
+}
+
+/* ─── Thinking Indicator ────────────────────────────────── */
+
+.ttt-thinking-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid rgba(59, 130, 246, 0.12);
+  border-radius: 12px;
+}
+
+.ttt-thinking-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.ttt-thinking-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #60a5fa;
+}
+
+.ttt-thinking-label {
+  font-size: 12px;
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOVE HISTORY — Compact log
+   ═══════════════════════════════════════════════════════════ */
+
+.ttt-move-log-list {
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 4px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ttt-move-log-list::-webkit-scrollbar {
+  width: 3px;
+}
+
+.ttt-move-log-list::-webkit-scrollbar-thumb {
+  background: var(--border-default, #2a2a4a);
+  border-radius: 9999px;
+}
+
+.ttt-move-log-entry {
+  font-size: 11px;
+  color: var(--text-secondary, #b0aed0);
+  font-family: var(--font-mono, monospace);
+  line-height: 1.8;
+}
+
+.ttt-move-log-num {
+  color: var(--text-disabled, #5a587a);
+  margin-right: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MINIMAX TREE — Spacious, always visible
+   ═══════════════════════════════════════════════════════════ */
+
+.ttt-tree-viz {
+  padding: 8px 18px 20px;
+}
+
+.ttt-tree-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 12px;
+  background: rgba(255, 255, 255, 0.015);
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle, #1e1e35);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.ttt-tree-node {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 14px;
+  border-radius: 7px;
+  font-weight: 700;
+  font-size: 11px;
+  transition: all 0.3s ease;
+  cursor: default;
+}
+
+.ttt-tree-node:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+.ttt-tree-node.root {
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  color: var(--accent-light, #a78bfa);
+}
+
+.ttt-tree-node.max {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: var(--success, #10b981);
+}
+
+.ttt-tree-node.min {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: var(--danger, #ef4444);
+}
+
+.ttt-tree-node.pruned {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px dashed rgba(245, 158, 11, 0.3);
+  color: var(--gold, #f59e0b);
+  opacity: 0.5;
+}
+
+.ttt-tree-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ttt-tree-connector {
+  color: var(--text-secondary, #9090b0);
+  font-size: 10px;
+}
+
+.ttt-tree-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.ttt-tree-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--text-secondary, #b0aed0);
+  font-weight: 600;
+}
+
+.ttt-tree-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ALPHA-BETA PRUNING — Always visible with explanation
+   ═══════════════════════════════════════════════════════════ */
+
+.ttt-pruning-body {
+  padding: 4px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Intuitive "What is pruning?" explainer */
+.ttt-pruning-explain {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(245, 158, 11, 0.04);
+  border: 1px solid rgba(245, 158, 11, 0.1);
+  border-radius: 10px;
+}
+
+.ttt-pruning-explain-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ttt-pruning-explain-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fcd34d;
+  margin-bottom: 4px;
+}
+
+.ttt-pruning-explain-text {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-secondary, #b0aed0);
+}
+
+.ttt-pruning-explain-text strong {
+  color: #fcd34d;
+}
+
+/* Active pruning message */
+.ttt-pruning-message {
+  padding: 12px 16px;
+  background: rgba(245, 158, 11, 0.06);
+  border-left: 3px solid rgba(245, 158, 11, 0.5);
+  border-radius: 0 10px 10px 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #fcd34d;
+  font-weight: 500;
+}
+
+.ttt-pruning-message strong {
+  font-weight: 800;
+  color: #fde68a;
+}
+
+/* Stats bars */
+.ttt-pruning-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ttt-pruning-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ttt-pruning-bar-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-secondary, #b0aed0);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  min-width: 65px;
+  text-align: right;
+}
+
+.ttt-pruning-bar-track {
+  flex: 1;
+  height: 22px;
+  background: var(--bg-surface-3, #1e1e35);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.ttt-pruning-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.6s var(--ease-smooth, cubic-bezier(0.22, 1, 0.36, 1));
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+  color: #fff;
+  min-width: 36px;
+}
+
+.ttt-pruning-bar-fill.explored {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.6), rgba(99, 102, 241, 0.9));
+}
+
+.ttt-pruning-bar-fill.pruned {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.6), rgba(245, 158, 11, 0.9));
+}
+
+/* Stats grid */
+.ttt-pruning-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.ttt-pruning-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg-surface-3, #1e1e35);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, #1e1e35);
+}
+
+.ttt-pruning-stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-secondary, #b0aed0);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ttt-pruning-stat-value {
+  font-size: 14px;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+}
+
+.ttt-pruning-stat-value.nodes { color: #818cf8; }
+.ttt-pruning-stat-value.pruned { color: #f59e0b; }
+.ttt-pruning-stat-value.depth { color: #10b981; }
+.ttt-pruning-stat-value.efficiency { color: #14b8a6; }
+
+/* ═══════════════════════════════════════════════════════════
+   COMPLEXITY INSIGHTS — Always visible
+   ═══════════════════════════════════════════════════════════ */
+
+.ttt-complexity-body {
+  padding: 4px 18px 20px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HOW MINIMAX WORKS — Step-by-step with numbered circles
+   Clean, readable, high-contrast
+   ═══════════════════════════════════════════════════════════ */
+
+.ttt-how-content {
+  padding: 4px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ttt-how-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary, #b0aed0);
+}
+
+.ttt-how-step strong {
+  color: var(--text-primary, #e0def8);
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.ttt-how-step p {
+  margin: 0;
+  color: var(--text-secondary, #b0aed0);
+}
+
+.ttt-how-step code {
+  background: rgba(124, 58, 237, 0.1);
+  color: #c4b5fd;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+}
+
+.ttt-how-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(124, 58, 237, 0.12);
+  color: var(--accent-light, #a78bfa);
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ttt-how-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px 16px;
+}
+
+.ttt-how-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success, #10b981);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+.ttt-how-status-text {
+  font-size: 10px;
+  color: var(--text-secondary, #9090b0);
+  font-family: var(--font-mono, monospace);
+}
+
+/* ─── Panel Footer ──────────────────────────────────────── */
+
+.ttt-panel-footer {
+  flex-shrink: 0;
+  padding: 12px 18px 14px;
+  border-top: 1px solid var(--border-subtle, #1e1e35);
+  background: var(--bg-surface, #0f0f1a);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ttt-panel-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* ─── Hint Banner ───────────────────────────────────────── */
+
+.ttt-hint-banner {
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.15);
+  font-size: 12.5px;
+  color: #fcd34d;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+/* ─── Legacy collapse (kept for compatibility) ──────────── */
+
+.ttt-collapse-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 18px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+}
+
+.ttt-collapse-chevron {
+  font-size: 10px;
+  color: var(--text-muted, #605e80);
+  transition: transform 0.3s ease;
+}
+
+.ttt-collapse-chevron.open {
+  transform: rotate(180deg);
+}
+
+.ttt-collapse-body {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.45s ease, opacity 0.3s ease;
+}
+
+.ttt-collapse-body.open {
+  max-height: 1000px;
+  opacity: 1;
+}
+
+/* ─── No-select utility during drag ─────────────────────── */
+
+.ttt-no-select {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: col-resize !important;
+}

@@ -1,0 +1,424 @@
+/* ═══════════════════════════════════════════════════════════
+   ComplexityInsights — Scoped CSS
+   All classes prefixed with ci- to avoid conflicts.
+   Uses IntelliPlay design tokens from globals.css
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── Container ──────────────────────────────────────────── */
+
+.ci-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  font-family: var(--font-body, 'Inter', system-ui, sans-serif);
+}
+
+/* ─── Section Header ─────────────────────────────────────── */
+
+.ci-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ci-section-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.ci-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary, #a09ec0);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* ─── What is Complexity (collapsible) ───────────────────── */
+
+.ci-definition-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  background: rgba(124, 58, 237, 0.06);
+  border: 1px solid rgba(124, 58, 237, 0.12);
+  border-radius: 8px;
+  color: var(--accent-light, #a78bfa);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  margin-bottom: 8px;
+}
+
+.ci-definition-toggle:hover {
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.2);
+}
+
+.ci-definition-chevron {
+  font-size: 10px;
+  transition: transform 0.25s ease;
+}
+
+.ci-definition-chevron.open {
+  transform: rotate(180deg);
+}
+
+.ci-definition-body {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.25s ease;
+  margin-bottom: 0;
+}
+
+.ci-definition-body.open {
+  max-height: 120px;
+  opacity: 1;
+  margin-bottom: 8px;
+}
+
+.ci-definition-text {
+  padding: 8px 10px;
+  background: rgba(124, 58, 237, 0.04);
+  border-left: 2px solid var(--accent, #7c3aed);
+  border-radius: 0 6px 6px 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-muted, #605e80);
+}
+
+/* ─── Complexity Card ────────────────────────────────────── */
+
+.ci-card {
+  background: var(--bg-surface-2, #16162a);
+  border: 1px solid var(--border-subtle, #1e1e35);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+/* ─── Mode Toggle ────────────────────────────────────────── */
+
+.ci-mode-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-surface-3, #1e1e35);
+  border-radius: 7px;
+  margin-bottom: 10px;
+}
+
+.ci-mode-btn {
+  flex: 1;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #605e80);
+  font-size: 10px;
+  font-weight: 650;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  text-align: center;
+}
+
+.ci-mode-btn:hover {
+  color: var(--text-secondary, #a09ec0);
+}
+
+.ci-mode-btn.active {
+  background: var(--accent, #7c3aed);
+  color: #fff;
+  box-shadow: 0 2px 8px var(--accent-glow, rgba(124, 58, 237, 0.25));
+}
+
+/* ─── Big-O Display ──────────────────────────────────────── */
+
+.ci-complexity-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ci-complexity-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted, #605e80);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  min-width: 45px;
+}
+
+.ci-complexity-value {
+  position: relative;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  color: var(--accent-light, #a78bfa);
+  cursor: help;
+}
+
+.ci-complexity-value.space {
+  color: var(--success, #10b981);
+}
+
+.ci-complexity-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(124, 58, 237, 0.1);
+  color: var(--accent-light, #a78bfa);
+  margin-left: 6px;
+}
+
+.ci-complexity-badge.space {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success, #10b981);
+}
+
+/* ─── Algorithm Label ────────────────────────────────────── */
+
+.ci-algo-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gold, #f59e0b);
+  margin-bottom: 8px;
+}
+
+/* ─── Algorithm Tabs (for dual-algorithm games) ──────────── */
+
+.ci-algo-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.ci-algo-tab {
+  padding: 3px 10px;
+  border: 1px solid var(--border-subtle, #1e1e35);
+  background: transparent;
+  color: var(--text-muted, #605e80);
+  font-size: 10px;
+  font-weight: 650;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.ci-algo-tab:hover {
+  border-color: var(--border-default, #2a2a4a);
+  color: var(--text-secondary, #a09ec0);
+}
+
+.ci-algo-tab.active {
+  background: rgba(124, 58, 237, 0.1);
+  border-color: var(--accent, #7c3aed);
+  color: var(--accent-light, #a78bfa);
+}
+
+/* ─── Tooltip System ─────────────────────────────────────── */
+
+.ci-tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.ci-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  background: var(--bg-surface-3, #1e1e35);
+  border: 1px solid var(--border-default, #2a2a4a);
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary, #a09ec0);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateX(-50%) translateY(4px);
+  z-index: 50;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  max-width: 240px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.ci-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--border-default, #2a2a4a);
+}
+
+.ci-tooltip-wrapper:hover .ci-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ─── Collapsible Explanation ────────────────────────────── */
+
+.ci-explainer-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 5px 0;
+  background: none;
+  border: none;
+  color: var(--text-muted, #605e80);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.2s;
+  margin-top: 4px;
+}
+
+.ci-explainer-toggle:hover {
+  color: var(--text-secondary, #a09ec0);
+}
+
+.ci-explainer-body {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+.ci-explainer-body.open {
+  max-height: 300px;
+  opacity: 1;
+}
+
+.ci-explainer-text {
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--text-muted, #605e80);
+}
+
+.ci-variable-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ci-variable-item {
+  display: flex;
+  gap: 6px;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.ci-variable-key {
+  font-family: var(--font-mono, monospace);
+  font-weight: 800;
+  color: var(--accent-light, #a78bfa);
+  min-width: 14px;
+}
+
+.ci-variable-desc {
+  color: var(--text-muted, #605e80);
+}
+
+/* ─── Live Metrics Grid ──────────────────────────────────── */
+
+.ci-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.ci-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  background: var(--bg-surface-3, #1e1e35);
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle, #1e1e35);
+  transition: border-color 0.3s ease;
+}
+
+.ci-metric.updated {
+  border-color: var(--accent, #7c3aed);
+}
+
+.ci-metric-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted, #605e80);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ci-metric-icon {
+  font-size: 10px;
+}
+
+.ci-metric-value {
+  font-size: 12px;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+  color: var(--accent-light, #a78bfa);
+  transition: color 0.3s ease;
+}
+
+.ci-metric-value.nodes   { color: #818cf8; }
+.ci-metric-value.states  { color: #60a5fa; }
+.ci-metric-value.backtr  { color: #f43f5e; }
+.ci-metric-value.depth   { color: #10b981; }
+.ci-metric-value.pruned  { color: #f59e0b; }
+.ci-metric-value.time    { color: #14b8a6; }
+
+/* ─── Pulse animation for updating values ────────────────── */
+
+@keyframes ciPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.ci-metric-value.pulse {
+  animation: ciPulse 0.3s ease-out;
+}
+
+/* ─── Divider ────────────────────────────────────────────── */
+
+.ci-divider {
+  height: 1px;
+  background: var(--border-subtle, #1e1e35);
+  margin: 4px 0;
+}

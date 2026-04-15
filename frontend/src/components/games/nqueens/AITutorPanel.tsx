@@ -3,6 +3,7 @@
    ============================================ */
 
 import { useRef, useEffect, memo } from 'react';
+import ComplexityInsights from '@/components/learn/ComplexityInsights';
 import {
   type TutorMessage,
   type AlgoState,
@@ -110,6 +111,11 @@ function AITutorPanelComponent({
           <span>Did You Know?</span>
         </div>
         <p className="nq-fact-text">{currentFact}</p>
+      </div>
+
+      {/* ─── COMPLEXITY INSIGHTS ─── */}
+      <div className="nq-glass-card">
+        <ComplexityInsights gameId="nqueens" variant="glass-card" />
       </div>
 
       {/* ─── LIVE CODE ─── */}

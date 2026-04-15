@@ -21,6 +21,7 @@ import {
   getUniqueLetters, getLeadingLetters, validateEquation,
   parsePuzzle, wordToNumber,
 } from './utils';
+import { useComplexityStore } from '@/store/complexityStore';
 
 const API_BASE = '/api/games';
 
@@ -170,6 +171,18 @@ export default function Cryptarithmetic() {
     setMetrics(data.metrics);
     setCurrentStepIndex(-1);
     setTree(buildTreeFromSteps(data.steps));
+    // Update complexity metrics from solver response
+    useComplexityStore.getState().startTracking('cryptarith');
+    if (data.metrics) {
+      useComplexityStore.getState().setMetricsBatch({
+        nodesExplored: data.metrics.nodes_explored,
+        backtracks: data.metrics.backtracks,
+        branchesPruned: data.metrics.nodes_pruned,
+        depthReached: data.metrics.max_depth,
+        statesChecked: data.metrics.nodes_explored,
+        timeElapsedMs: data.metrics.time_ms,
+      });
+    }
   }, [puzzle, currentLevel, solve]);
 
   const handleNextStep = useCallback(() => {
@@ -186,6 +199,14 @@ export default function Cryptarithmetic() {
     if (step?.type === 'solution') {
       setIsSolved(true);
     }
+    // Update complexity metrics per step
+    const cs = useComplexityStore.getState();
+    cs.incrementNodes();
+    cs.incrementStates();
+    if (step?.depth !== undefined) cs.setDepth(step.depth);
+    if (step?.type === 'backtrack') cs.incrementBacktracks();
+    if (step?.type === 'prune') cs.incrementPruned();
+    cs.updateElapsedTime();
   }, [currentStepIndex, steps]);
 
   const handlePrevStep = useCallback(() => {

@@ -24,6 +24,7 @@ import {
   FactEngine,
   getCodeHighlights,
 } from '../utils/nqueensHelpers';
+import { useComplexityStore } from '@/store/complexityStore';
 
 // ─── STATE INTERFACE ──────────────────────────────────────
 
@@ -326,6 +327,15 @@ export function useNQueensEngine(): NQueensEngine {
     const newTotalSteps = s.totalSteps + 1;
     const newTotalBacktracks = type === 'backtrack' ? s.totalBacktracks + 1 : s.totalBacktracks;
 
+    // Update complexity metrics
+    const cs = useComplexityStore.getState();
+    cs.incrementNodes();
+    cs.incrementStates();
+    cs.setDepth(row >= 0 ? row + 1 : cs.depthReached);
+    if (type === 'backtrack') cs.incrementBacktracks();
+    if (type === 'reject') cs.incrementPruned();
+    cs.updateElapsedTime();
+
     setState(prev => ({
       ...prev,
       board: [...board],
@@ -546,6 +556,8 @@ export function useNQueensEngine(): NQueensEngine {
     const welcomeMsgs = TUTOR.welcome(mode, n);
     setMessages(welcomeMsgs);
     showFact();
+    // Reset complexity metrics
+    useComplexityStore.getState().startTracking('nqueens');
   }, [stopAnimation, showFact]);
 
   const onReset = useCallback(() => {
