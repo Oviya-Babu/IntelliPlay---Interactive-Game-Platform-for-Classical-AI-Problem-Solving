@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { checkWin, getStateFromCharacters, checkGameOver } from './logic/gameRules';
-import { solve, computeOptimalPath, getNextFromPath, getHintFromPath, explainMove, explainWhySafe, generateAITeaching } from './logic/bfsSolver';
+import { solve, computeOptimalPath, getNextFromPath, getHintFromPath, explainMove, explainWhySafe, generateAITeaching, generateDetailedExplanation } from './logic/bfsSolver';
 import { useComplexityStore } from '@/store/complexityStore';
 import River from './River';
 import Boat from './Boat';
@@ -40,6 +40,11 @@ export default function MissionariesGame() {
   const [moveHistory, setMoveHistory] = useState([]);
   const autoSolveRef = useRef(false);
 
+  // AI explanation state — structured sections for tutor panel
+  const [aiExplanation, setAiExplanation] = useState(null);
+  // Structured hint data for display
+  const [hintData, setHintData] = useState(null);
+
   // PRECOMPUTED BFS PATH — computed once on mount
   const optimalPathRef = useRef(null);
   useEffect(() => {
@@ -69,6 +74,9 @@ export default function MissionariesGame() {
 
   const fearSide = getFearSide();
 
+  // Compute current state for AI panel
+  const currentState = getStateFromCharacters(characters, boatSide);
+
   // Compute hints using precomputed path (only when not animating to avoid intermediate states)
   useEffect(() => {
     if (showHints && gameStatus === 'playing' && !isAnimating) {
@@ -81,8 +89,10 @@ export default function MissionariesGame() {
         hint.cannibals = Math.max(0, hint.cannibals - excess);
       }
       setHintChars(hint);
+      setHintData(hint);
     } else if (!showHints) {
       setHintChars(null);
+      setHintData(null);
     }
   }, [showHints, boatSide, gameStatus, isAnimating]);
 
@@ -144,6 +154,13 @@ export default function MissionariesGame() {
         const sC = gameOverSide === 'left' ? newState.left.C : newState.right.C;
         addMessage(`🧠 ${side} bank: ${sM}H vs ${sC}Z — monsters attacked!`, 'info');
       }
+      setAiExplanation({
+        sections: [
+          { title: '💀 GAME OVER', content: 'The monsters overpowered the humans!' },
+          { title: '🧠 WHAT WENT WRONG', content: `The move resulted in humans being outnumbered on the ${gameOverSide} bank. Always verify both banks remain safe before moving.` },
+        ],
+        type: 'error',
+      });
       setIsAnimating(false);
       return false;
     }
@@ -177,8 +194,19 @@ export default function MissionariesGame() {
       setGameStatus('won');
       addMessage(`🎉 YOU WIN in ${newMoveCount} moves!`, 'success');
       addMessage(newMoveCount <= 11 ? '🏆 Optimal!' : `🏆 Optimal is 11 moves.`, newMoveCount <= 11 ? 'success' : 'info');
+      setAiExplanation({
+        sections: [
+          { title: '🎉 PUZZLE SOLVED', content: `All characters crossed safely in ${newMoveCount} moves!` },
+          { title: '📊 RESULT', content: newMoveCount <= 11 ? 'That\'s the optimal solution! BFS found this exact 11-move path.' : `Optimal is 11 moves. You used ${newMoveCount}. Try again to match BFS!` },
+        ],
+        type: 'success',
+      });
     } else {
-      // AI suggestion from PRECOMPUTED path
+      // Generate detailed AI explanation from PRECOMPUTED path
+      const detailed = generateDetailedExplanation(optimalPathRef.current, newState, newMoveCount, isLearning);
+      setAiExplanation(detailed);
+
+      // Also add legacy message
       const aiMsg = generateAITeaching(optimalPathRef.current, newState, newMoveCount, isLearning);
       addMessage(aiMsg.text, aiMsg.type);
     }
@@ -210,6 +238,8 @@ export default function MissionariesGame() {
     setMoveHistory([]);
     setShakeScene(false);
     setUnsafeSide(null);
+    setAiExplanation(null);
+    setHintData(null);
     // Recompute path on reset
     optimalPathRef.current = computeOptimalPath();
     // Reset complexity metrics
@@ -398,6 +428,10 @@ export default function MissionariesGame() {
         messages={messages}
         learningMode={learningMode}
         moveLog={moveHistory}
+        currentState={currentState}
+        hintData={hintData}
+        moveCount={moveCount}
+        aiExplanation={aiExplanation}
       />
     </div>
   );

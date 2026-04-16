@@ -1076,6 +1076,8 @@ export default function Cryptarithmetic() {
           <TutorPanel
             level={currentLevelId}
             currentStep={currentStep}
+            steps={steps}
+            currentStepIndex={currentStepIndex}
             metrics={botMetrics}
             onNextStep={handleNextStep}
             onPrevStep={handlePrevStep}

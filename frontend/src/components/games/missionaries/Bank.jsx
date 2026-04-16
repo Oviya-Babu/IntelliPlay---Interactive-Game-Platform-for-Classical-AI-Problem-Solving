@@ -11,7 +11,6 @@ export default function Bank({ side, unsafe }) {
       </div>
       {side === 'left' && <div className="bank-tree tree-left" />}
       {side === 'right' && <div className="bank-tree tree-right" />}
-      <div className="bank-label">{side === 'left' ? 'Left Bank' : 'Right Bank'}</div>
     </div>
   );
 }
