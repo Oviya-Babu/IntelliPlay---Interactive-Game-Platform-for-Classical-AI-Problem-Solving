@@ -146,7 +146,7 @@ def solve_cryptarithm(
     result_word: str,
     mode: str = "full_csp",        # brute_force | backtrack | forward_checking | full_csp
     use_mrv: bool = True,
-    max_trace: int = 200,
+    max_trace: int = 2000,
 ) -> SolverResult:
     """
     Main solver entry point. Configurable via mode and use_mrv flags.
