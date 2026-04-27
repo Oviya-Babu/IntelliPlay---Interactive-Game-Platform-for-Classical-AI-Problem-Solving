@@ -91,15 +91,21 @@ function AITutorPanelComponent({
       </div>
 
       {/* ─── MESSAGES ─── */}
-      <div className="nq-messages-container">
+      <div className="nq-messages-container" style={{ minHeight: '120px' }}>
         <div className="nq-tutor-messages">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`nq-tutor-msg ${msg.type}`}
-              dangerouslySetInnerHTML={{ __html: msg.text }}
-            />
-          ))}
+          {messages.length === 0 ? (
+            <div className="nq-tutor-msg info" style={{ opacity: 0.65, fontStyle: 'italic', fontSize: 12 }}>
+              🤖 AI explanations will appear here as you play. Place queens manually or click <strong>Start</strong> in AI Solve mode to begin.
+            </div>
+          ) : (
+            messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`nq-tutor-msg ${msg.type}`}
+                dangerouslySetInnerHTML={{ __html: msg.text }}
+              />
+            ))
+          )}
           <div ref={messagesEndRef} />
         </div>
       </div>

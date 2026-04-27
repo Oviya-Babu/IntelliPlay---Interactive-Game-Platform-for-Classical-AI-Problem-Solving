@@ -490,14 +490,17 @@ function AlphaBetaView() {
   const metrics = useComplexityStore()
 
   const total = metrics.nodesExplored + metrics.branchesPruned
-  const exploredPct = total > 0 ? Math.round((metrics.nodesExplored / total) * 100) : 0
+  const exploredPct = total > 0 ? Math.round((metrics.nodesExplored / total) * 100) : 100
   const prunedPct = total > 0 ? 100 - exploredPct : 0
-  const efficiency = total > 0 ? ((metrics.branchesPruned / total) * 100).toFixed(1) : '0.0'
+  const efficiency = total > 0 && metrics.branchesPruned > 0
+    ? ((metrics.branchesPruned / total) * 100).toFixed(1)
+    : '0.0'
+  const hasPruning = metrics.branchesPruned > 0
 
   return (
     <div className="ttt-pruning-body">
       <div className="ttt-pruning-bars">
-        {/* Explored bar */}
+        {/* Explored bar — always shown */}
         <div className="ttt-pruning-bar-row">
           <span className="ttt-pruning-bar-label">Explored</span>
           <div className="ttt-pruning-bar-track">
@@ -510,18 +513,27 @@ function AlphaBetaView() {
           </div>
         </div>
 
-        {/* Pruned bar */}
-        <div className="ttt-pruning-bar-row">
-          <span className="ttt-pruning-bar-label">Pruned</span>
-          <div className="ttt-pruning-bar-track">
-            <div
-              className="ttt-pruning-bar-fill pruned"
-              style={{ width: `${Math.max(prunedPct, 2)}%` }}
-            >
-              {prunedPct}%
+        {/* Pruned bar — only shown when alpha-beta actually prunes */}
+        {hasPruning && (
+          <div className="ttt-pruning-bar-row">
+            <span className="ttt-pruning-bar-label">Pruned</span>
+            <div className="ttt-pruning-bar-track">
+              <div
+                className="ttt-pruning-bar-fill pruned"
+                style={{ width: `${Math.max(prunedPct, 2)}%` }}
+              >
+                {prunedPct}%
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Honest note when no pruning */}
+        {!hasPruning && (
+          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.5 }}>
+            ℹ️ This game uses <strong>pure Minimax</strong> — no alpha-beta pruning is applied. All branches are explored fully.
+          </div>
+        )}
       </div>
 
       {/* Stats grid */}
@@ -530,18 +542,22 @@ function AlphaBetaView() {
           <span className="ttt-pruning-stat-label">Nodes</span>
           <span className="ttt-pruning-stat-value nodes">{metrics.nodesExplored.toLocaleString()}</span>
         </div>
-        <div className="ttt-pruning-stat">
-          <span className="ttt-pruning-stat-label">Pruned</span>
-          <span className="ttt-pruning-stat-value pruned">{metrics.branchesPruned.toLocaleString()}</span>
-        </div>
+        {hasPruning && (
+          <div className="ttt-pruning-stat">
+            <span className="ttt-pruning-stat-label">Pruned</span>
+            <span className="ttt-pruning-stat-value pruned">{metrics.branchesPruned.toLocaleString()}</span>
+          </div>
+        )}
         <div className="ttt-pruning-stat">
           <span className="ttt-pruning-stat-label">Depth</span>
           <span className="ttt-pruning-stat-value depth">{metrics.depthReached}</span>
         </div>
-        <div className="ttt-pruning-stat">
-          <span className="ttt-pruning-stat-label">Efficiency</span>
-          <span className="ttt-pruning-stat-value efficiency">{efficiency}%</span>
-        </div>
+        {hasPruning && (
+          <div className="ttt-pruning-stat">
+            <span className="ttt-pruning-stat-label">Efficiency</span>
+            <span className="ttt-pruning-stat-value efficiency">{efficiency}%</span>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1154,7 +1170,7 @@ export default function TicTacToe() {
           <div className="ttt-section-card">
             <div className="ttt-section-header">
               <span className="ttt-section-header-icon">⚡</span>
-              Alpha-Beta Pruning
+              Minimax Analysis
               {useComplexityStore.getState().branchesPruned > 0 && <span className="ttt-section-badge live">Active</span>}
             </div>
             <div className="ttt-pruning-body">

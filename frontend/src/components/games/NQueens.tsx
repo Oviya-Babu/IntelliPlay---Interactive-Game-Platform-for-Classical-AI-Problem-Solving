@@ -923,9 +923,9 @@ export default function NQueens() {
 
           {messages.length > 0 && (
             <div className="glass-card">
-              <div className="tutor-messages">
+              <div className="tutor-messages" style={{ maxHeight: '320px', overflowY: 'auto', lineHeight: '1.7', padding: '4px 0' }}>
                 {messages.map((msg, idx) => (
-                  <div key={idx} className="message-item" dangerouslySetInnerHTML={{ __html: msg.text }} />
+                  <div key={idx} className="message-item" style={{ marginBottom: '6px' }} dangerouslySetInnerHTML={{ __html: msg.text }} />
                 ))}
               </div>
             </div>
