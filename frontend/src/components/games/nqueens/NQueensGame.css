@@ -686,7 +686,7 @@
   flex-direction: column;
   padding: 14px;
   gap: 10px;
-  overflow: hidden;
+  overflow-y: auto;
   border-left: 1px solid var(--border-subtle);
   background: var(--bg-surface);
   max-width: 370px;
@@ -828,7 +828,7 @@
 /* Messages */
 .nq-messages-container {
   flex: 1;
-  min-height: 0;
+  min-height: 160px;
   overflow: hidden;
   display: flex;
   flex-direction: column;

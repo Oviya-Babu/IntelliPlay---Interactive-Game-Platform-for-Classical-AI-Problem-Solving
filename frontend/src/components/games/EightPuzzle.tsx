@@ -33,6 +33,8 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
   const [resultData, setResultData] = useState<any>(null)
   const [invalidMoveAttempt, setInvalidMoveAttempt] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [lastMovedTile, setLastMovedTile] = useState<number | null>(null)
+  const [bestMoves, setBestMoves] = useState<any[]>([])
 
   // AI playback state
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
@@ -424,8 +426,8 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
             <div
               className="grid gap-2"
               style={{
-                gridTemplateColumns: 'repeat(3, 90px)',
-                gridTemplateRows: 'repeat(3, 90px)',
+                gridTemplateColumns: 'repeat(3, clamp(72px, 18vw, 90px))',
+                gridTemplateRows: 'repeat(3, clamp(72px, 18vw, 90px))',
               }}
             >
               {board.map((val, idx) => {
@@ -451,7 +453,7 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
                     onClick={() => handleTileClick(idx)}
                     className="flex items-center justify-center rounded-lg border font-bold text-lg cursor-pointer relative"
                     style={{
-                      background: val === 0 ? 'rgba(255,255,255,0.03)' : 'var(--bg-surface,#151521)',
+                      background: val === 0 ? 'rgba(255,255,255,0.03)' : 'var(--bg-surface)',
                       borderColor:
                         adj && !isSolved && !aiSolving && val !== 0
                           ? 'rgba(107,99,255,0.6)'
@@ -534,11 +536,34 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
                 currentStepIndex={currentStepIndex}
                 onNext={() => {
                   setIsPaused(true)
-                  setCurrentStepIndex((i) => Math.min(stream.steps.length - 1, i + 1))
+                  if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current)
+                  const nextIdx = Math.min(stream.steps.length - 1, currentStepIndex + 1)
+                  const nextStep = stream.steps[nextIdx] as any
+                  if (nextStep?.state?.board) {
+                    setBoard(nextStep.state.board)
+                    setBlankPos(nextStep.state.board.indexOf(0))
+                    setMoveCount(nextIdx)
+                    setCurrentExplanation(nextStep.explanation || '')
+                  }
+                  setCurrentStepIndex(nextIdx)
+                  // If we just applied the last step, mark solved
+                  if (nextIdx === stream.steps.length - 1) {
+                    setAiSolving(false)
+                    setIsSolved(true)
+                  }
                 }}
                 onPrev={() => {
                   setIsPaused(true)
-                  setCurrentStepIndex((i) => Math.max(0, i - 1))
+                  if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current)
+                  const prevIdx = Math.max(0, currentStepIndex - 1)
+                  const prevStep = stream.steps[prevIdx] as any
+                  if (prevStep?.state?.board) {
+                    setBoard(prevStep.state.board)
+                    setBlankPos(prevStep.state.board.indexOf(0))
+                    setMoveCount(prevIdx)
+                    setCurrentExplanation(prevStep.explanation || '')
+                  }
+                  setCurrentStepIndex(prevIdx)
                 }}
                 onPause={() => setIsPaused(true)}
                 onResume={() => setIsPaused(false)}
@@ -549,16 +574,16 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
             ) : (
               <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/10 backdrop-blur-sm space-y-5 overflow-y-auto max-h-[70vh]">
                 <div>
-                  <h3 className="text-md font-bold text-[var(--text-primary,#f1f0fe)] mb-3">How 8-Puzzle Works</h3>
-                  <div className="space-y-3 text-xs text-white/70 leading-5">
+                  <h3 className="text-md font-bold text-[var(--text-primary)] mb-3">How 8-Puzzle Works</h3>
+                  <div className="space-y-3 text-xs text-[var(--text-secondary)] leading-5">
                     <div className="bg-white/5 border border-white/10 rounded p-3">
-                      <p className="font-semibold text-white/90 mb-1">📋 The Problem:</p>
+                      <p className="font-semibold text-[var(--text-primary)] mb-1">📋 The Problem:</p>
                       <p>Arrange numbered tiles 1-8 in order, with empty space at bottom-right corner, by sliding adjacent tiles into the empty space.</p>
                     </div>
                     
                     <div className="bg-white/5 border border-white/10 rounded p-3">
-                      <p className="font-semibold text-white/90 mb-1">🎯 Movement Rules:</p>
-                      <ul className="space-y-1 ml-3 text-white/70">
+                      <p className="font-semibold text-[var(--text-primary)] mb-1">🎯 Movement Rules:</p>
+                      <ul className="space-y-1 ml-3 text-[var(--text-secondary)]">
                         <li>• Only tiles adjacent to empty space can move</li>
                         <li>• Click a tile to swap it with empty space</li>
                         <li>• Tiles with arrows show valid moves</li>
@@ -566,27 +591,39 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
                     </div>
 
                     <div className="bg-white/5 border border-white/10 rounded p-3">
-                      <p className="font-semibold text-white/90 mb-1">🚀 AI Strategy:</p>
-                      <p>Uses <span className="font-semibold text-emerald-300">A* Search</span> algorithm with <span className="font-semibold text-emerald-300">Manhattan Distance</span> heuristic to find the optimal solution in minimal moves!</p>
+                      <p className="font-semibold text-[var(--text-primary)] mb-1">🚀 AI Strategy:</p>
+                      <p>Uses <span className="font-semibold text-emerald-400">A* Search</span> algorithm with <span className="font-semibold text-emerald-400">Manhattan Distance</span> heuristic to find the optimal solution in minimal moves!</p>
                     </div>
 
                     <div className="bg-white/5 border border-white/10 rounded p-3">
-                      <p className="font-semibold text-white/90 mb-1">💡 Algorithm Insight:</p>
-                      <p><span className="text-blue-300">f(n)</span> = <span className="text-green-300">g(n)</span> + <span className="text-orange-300">h(n)</span></p>
-                      <p className="text-white/60 mt-2 text-xs">
-                        <span className="text-green-300">g(n)</span>: moves taken so far<br/>
-                        <span className="text-orange-300">h(n)</span>: estimated distance to goal<br/>
-                        <span className="text-blue-300">f(n)</span>: total estimated cost
+                      <p className="font-semibold text-[var(--text-primary)] mb-1">💡 Algorithm Insight:</p>
+                      <p><span className="text-blue-400">f(n)</span> = <span className="text-green-400">g(n)</span> + <span className="text-orange-400">h(n)</span></p>
+                      <p className="text-[var(--text-muted)] mt-2 text-xs">
+                        <span className="text-green-400">g(n)</span>: moves taken so far<br/>
+                        <span className="text-orange-400">h(n)</span>: estimated distance to goal<br/>
+                        <span className="text-blue-400">f(n)</span>: total estimated cost
                       </p>
                     </div>
 
                     <div className="bg-emerald-500/10 border border-emerald-500/30 rounded p-3">
-                      <p className="font-semibold text-emerald-300 mb-2">✨ Pro Tips:</p>
-                      <ul className="space-y-1 text-emerald-200/80 text-xs ml-3">
+                      <p className="font-semibold text-emerald-400 mb-2">✨ Pro Tips:</p>
+                      <ul className="space-y-1 text-emerald-300/80 text-xs ml-3">
                         <li>• Click "Watch AI Solve" to see optimal strategy</li>
                         <li>• Position corner tiles first</li>
                         <li>• Each step reduces total cost</li>
                       </ul>
+                    </div>
+
+                    {/* Educational Info Box — Phase 2.6 */}
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3 space-y-3">
+                      <div>
+                        <p className="font-semibold text-blue-400 mb-1">📌 Why is the goal fixed?</p>
+                        <p className="text-[var(--text-secondary)] leading-5">The 8-puzzle uses the standard goal state: tiles 1–8 in order with the empty space at the end. This allows algorithms like A* to compute a single, consistent optimal path every time.</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-blue-400 mb-1">🚫 Why can't some puzzles be solved?</p>
+                        <p className="text-[var(--text-secondary)] leading-5">Some board configurations are mathematically impossible to solve. If the number of <span className="text-blue-300 font-medium">inversions</span> (pairs of tiles out of order) is <span className="text-red-400 font-medium">odd</span>, the puzzle has no solution. A* detects this via parity — only boards with <span className="text-green-400 font-medium">even inversions</span> are generated.</p>
+                      </div>
                     </div>
 
                     {/* Complexity Insights */}

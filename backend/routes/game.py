@@ -138,7 +138,9 @@ async def websocket_tictactoe(websocket: WebSocket, session_id: str):
 async def create_new_eightpuzzle():
     session_id = str(uuid.uuid4())
     state = EightPuzzleState.initial()
-    result = astar(state)
+    # Run A* non-blocking so the event loop isn't stalled
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, astar, state)
     sessions[session_id] = {
         "game": "eightpuzzle",
         "state": state,
@@ -187,7 +189,29 @@ async def websocket_eightpuzzle(websocket: WebSocket, session_id: str):
         await websocket.send_json({"type": "error", "message": "Session not found"})
         await websocket.close()
         return
-    steps_to_stream = session.get("ai_steps", [])
+
+    # Always re-solve from CURRENT board state so AI reaches the correct goal
+    current_state: EightPuzzleState = session.get("state")
+    if current_state is None:
+        await websocket.send_json({"type": "error", "message": "No game state found"})
+        await websocket.close()
+        return
+
+    # If already at goal, tell frontend immediately
+    if list(current_state.board) == GOAL_STATE:
+        await websocket.send_json({"type": "done", "best_move": None, "total_steps": 0})
+        await websocket.close()
+        return
+
+    # Re-run A* from current position (non-blocking via executor)
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, astar, current_state)
+
+    # Store fresh steps back into session
+    session["ai_steps"] = result.steps
+    session["optimal_moves"] = result.optimal_length
+
+    steps_to_stream = result.steps
     if steps_to_stream:
         agent = SearchAgent()
         await agent.stream_steps(websocket, steps_to_stream, delay_ms=200)
@@ -296,7 +320,8 @@ async def get_eightpuzzle_hint(session_id: str):
 async def create_new_missionaries():
     session_id = str(uuid.uuid4())
     state = MissionariesState.initial()
-    result = bfs(state)
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, bfs, state)
     optimal_moves = len(result.path) - 1 if result.path else 0
     sessions[session_id] = {
         "game": "missionaries",
