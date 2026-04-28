@@ -77,7 +77,8 @@ async def make_move_tictactoe(req: MoveRequest):
     }
     if not new_state.is_terminal() and session["mode"] == "pvai" and new_state.current_player == "O":
         agent = TicTacToeAgent()
-        result = agent.get_best_move(new_state)
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None, agent.get_best_move, new_state)
         if result.best_move is not None:
             new_state = new_state.apply_move(result.best_move)
             session["state"] = new_state
@@ -106,7 +107,8 @@ async def websocket_tictactoe(websocket: WebSocket, session_id: str):
     if session["mode"] == "aivai":
         agent = TicTacToeAgent()
         while not state.is_terminal():
-            result = agent.get_best_move(state)
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(None, agent.get_best_move, state)
             await agent.stream_steps(websocket, result.steps, delay_ms=500)
             if result.best_move is not None:
                 state = state.apply_move(result.best_move)
@@ -121,7 +123,8 @@ async def websocket_tictactoe(websocket: WebSocket, session_id: str):
     best_move = session.get("latest_ai_best_move", None)
     if not steps_to_stream and not state.is_terminal() and session["mode"] == "pvai" and state.current_player == "O":
         agent = TicTacToeAgent()
-        result = agent.get_best_move(state)
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None, agent.get_best_move, state)
         steps_to_stream = result.steps
         best_move = result.best_move
     if steps_to_stream:
@@ -231,7 +234,8 @@ async def get_eightpuzzle_best_moves(req: dict):
     if not current_state:
         raise HTTPException(status_code=400, detail="Invalid game state")
     
-    best_moves = get_best_moves(current_state, tuple(GOAL_STATE))
+    loop = asyncio.get_running_loop()
+    best_moves = await loop.run_in_executor(None, get_best_moves, current_state, tuple(GOAL_STATE))
     return {"best_moves": best_moves}
 
 
@@ -247,7 +251,8 @@ async def rate_eightpuzzle_move(req: dict):
     if not current_state:
         raise HTTPException(status_code=400, detail="Invalid game state")
     
-    feedback = rate_user_move(current_state, user_board)
+    loop = asyncio.get_running_loop()
+    feedback = await loop.run_in_executor(None, rate_user_move, current_state, user_board)
     return feedback
 
 
@@ -262,8 +267,9 @@ async def get_eightpuzzle_hint(session_id: str):
     if not current_state:
         raise HTTPException(status_code=400, detail="Invalid game state")
     
-    # Solve from current state using A*
-    result = astar(current_state)
+    # Solve from current state using A* (non-blocking)
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, astar, current_state)
     
     # If already at goal, no hint needed
     if result.optimal_length == 0:
@@ -387,8 +393,9 @@ async def get_missionaries_hint(session_id: str):
     if not current_state:
         raise HTTPException(status_code=400, detail="Invalid game state")
     
-    # Solve from current state using BFS
-    result = bfs(current_state)
+    # Solve from current state using BFS (non-blocking)
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, bfs, current_state)
     
     if result.optimal_length == 0:
         return {
@@ -422,8 +429,9 @@ async def create_new_nqueens(req: NQueensNewRequest):
     n = req.n
     state = NQueensState.initial(n)
 
-    # Pre-solve for AI stream
-    result = solve_nqueens(n)
+    # Pre-solve for AI stream (non-blocking)
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, solve_nqueens, n)
 
     sessions[session_id] = {
         "game": "nqueens",
@@ -505,8 +513,9 @@ async def create_new_cryptarith(req: CryptarithNewRequest):
         else:
             domains[letter] = list(range(0, 10))
 
-    # Pre-solve for AI stream
-    result = solve_to_stepdicts(equation)
+    # Pre-solve for AI stream (non-blocking)
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, solve_to_stepdicts, equation)
 
     sessions[session_id] = {
         "game": "cryptarith",
@@ -566,12 +575,15 @@ async def assign_cryptarith(req: CryptarithAssignRequest):
 async def solve_cryptarith_puzzle(req: CryptarithSolveRequest):
     """Solve a cryptarithmetic puzzle with configurable mode and MRV toggle."""
     try:
-        result = solve_cryptarithm(
-            word1=req.word1.upper(),
-            word2=req.word2.upper(),
-            result_word=req.result.upper(),
-            mode=req.mode,
-            use_mrv=req.use_mrv,
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None, 
+            lambda: solve_cryptarithm(
+                word1=req.word1.upper(),
+                word2=req.word2.upper(),
+                result_word=req.result.upper(),
+                mode=req.mode,
+                use_mrv=req.use_mrv,
+            )
         )
         return CryptarithSolveResponse(
             solution=result.solution,
@@ -602,13 +614,16 @@ async def validate_cryptarith_puzzle(req: CryptarithValidateRequest):
     """Validate if a custom puzzle is solvable."""
     try:
         words, unique_letters, leading = parse_puzzle(req.word1.upper(), req.word2.upper(), req.result.upper())
-        result = solve_cryptarithm(
-            word1=req.word1.upper(),
-            word2=req.word2.upper(),
-            result_word=req.result.upper(),
-            mode="full_csp",
-            use_mrv=True,
-            max_trace=0,
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None,
+            lambda: solve_cryptarithm(
+                word1=req.word1.upper(),
+                word2=req.word2.upper(),
+                result_word=req.result.upper(),
+                mode="full_csp",
+                use_mrv=True,
+                max_trace=0,
+            )
         )
         return CryptarithValidateResponse(
             is_valid=True,

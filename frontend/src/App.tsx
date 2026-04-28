@@ -10,7 +10,7 @@ const GamePage    = lazy(() => import('@/pages/GamePage'))
 
 function LoadingFallback() {
   return (
-    <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--bg-base)' }}>
+    <div className="flex items-center justify-center min-h-screen bg-[var(--bg-base)]">
       <div style={{
         width: 48, height: 48, borderRadius: '50%',
         border: '3px solid var(--border-default)',
@@ -25,7 +25,7 @@ export default function App() {
   const location = useLocation()
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
+    <div className="min-h-screen w-full bg-[var(--bg-base)] text-[var(--text-primary)] transition-colors duration-220">
       <Navbar />
       <Suspense fallback={<LoadingFallback />}>
         <AnimatePresence mode="wait">

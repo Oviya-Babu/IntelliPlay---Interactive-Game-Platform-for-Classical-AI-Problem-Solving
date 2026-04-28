@@ -2,11 +2,13 @@
 backend/routes/chat.py
 AI Chatbot — powered by Groq (llama-3.3-70b-versatile) with rule-based fallback.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import os
 import random
 import logging
+import asyncio
+import time
 from groq import Groq
 from dotenv import load_dotenv
 
@@ -26,6 +28,10 @@ try:
 except Exception as e:
     logger.warning(f"[CHAT] Failed to initialize Groq client: {str(e)}")
     groq_client = None
+
+# Rate limiting: 1 request per 2 seconds per session
+session_last_request: dict[str, float] = {}
+RATE_LIMIT_SECONDS = 2
 
 
 # ─── REQUEST / RESPONSE ──────────────────────────────────────
@@ -128,6 +134,13 @@ async def chat(body: ChatRequest) -> ChatResponse:
     personality = AGENT_PERSONALITIES.get(body.game_id, "You are a helpful AI tutor.")
     algo_context = ALGORITHM_CONTEXT.get(body.game_id, "classical AI")
 
+    # Rate limiting check
+    now = time.time()
+    last_time = session_last_request.get(body.session_id, 0)
+    if now - last_time < RATE_LIMIT_SECONDS:
+        raise HTTPException(status_code=429, detail="Too many requests. Please wait 2 seconds.")
+    session_last_request[body.session_id] = now
+
     answer = None
 
     # ── Try Groq (primary) ──
@@ -157,17 +170,25 @@ async def chat(body: ChatRequest) -> ChatResponse:
             f"User question: {body.question}"
         )
 
-        resp = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user",   "content": user_message},
-            ],
-            max_tokens=300,
-            temperature=0.85,
-            top_p=0.92,
-            frequency_penalty=0.7,
-            presence_penalty=0.6,
+        def call_groq():
+            return groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": user_message},
+                ],
+                max_tokens=300,
+                temperature=0.85,
+                top_p=0.92,
+                frequency_penalty=0.7,
+                presence_penalty=0.6,
+                timeout=8
+            )
+        
+        loop = asyncio.get_running_loop()
+        resp = await asyncio.wait_for(
+            loop.run_in_executor(None, call_groq),
+            timeout=10
         )
         answer = (resp.choices[0].message.content or "").strip()
         if not answer:

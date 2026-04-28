@@ -41,13 +41,26 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
   const [isPaused, setIsPaused] = useState(false)
   const [currentSpeed, setCurrentSpeed] = useState(1)
   const [currentExplanation, setCurrentExplanation] = useState('')
-  const playbackIntervalRef = useRef<number | null>(null)
+  // playbackIntervalRef now holds a setTimeout id (not setInterval)
+  const playbackIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const playbackIndexRef = useRef<number>(0)
+  // Refs always hold the LATEST values — readable inside closures without stale capture
+  const currentSpeedRef = useRef(1)
+  const isPlayingRef = useRef(false)
+  const stepsRef = useRef<any[]>([])
 
   const goalState = GOAL_STATE
   const stream = useAIStream(aiSolving ? sessionId : null, 'eightpuzzle')
   const { getElapsedMs, hintsUsed, livesLost } = useGameStore()
   const { completeLevel } = useProgressStore()
+
+  // ── Sync refs on every render so closures always see the latest values ──
+  currentSpeedRef.current = currentSpeed
+  stepsRef.current = stream?.steps ?? []
+
+  // Speed helper — reads from ref so it's always current
+  const getSpeedMs = (speed: number) =>
+    speed === 0.5 ? 8000 : speed === 1 ? 2500 : speed === 2 ? 1200 : 600
 
   // Initialize game on mount
   useEffect(() => {
@@ -80,40 +93,80 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
   // Track solve completion
   useEffect(() => {
     if (isSolved) {
+      // ✅ Stop all AI operations permanently when goal state is reached
+      if (playbackIntervalRef.current) {
+        clearInterval(playbackIntervalRef.current)
+        playbackIntervalRef.current = null
+      }
+      
+      setAiSolving(false)
+      setIsPaused(false)
+      
       const elapsed = getElapsedMs()
       const s = calcStars({ movesUsed: moveCount, optimalMoves, timeMs: elapsed, hintsUsed, livesLost })
       const score = calcScore({ movesUsed: moveCount, optimalMoves, hintsUsed, livesLost, difficulty: 2 })
       completeLevel('eightpuzzle', s, score, elapsed)
       setResultData({ gameId: 'eightpuzzle', stars: s, score, movesUsed: moveCount, optimalMoves, timeMs: elapsed })
+      
+      console.log('[8-PUZZLE] ✅ GOAL STATE REACHED - GAME STOPPED PERMANENTLY')
+      console.log('[8-PUZZLE] ✅ Agent has completed solving, waiting for user to start new game')
     }
   }, [isSolved])
 
-  // AI playback
+  // ─── SINGLE PLAYBACK EFFECT using recursive setTimeout ──────────────────────
+  // KEY INSIGHT: We use recursive setTimeout instead of setInterval so that on
+  // every tick we re-read currentSpeedRef.current and stepsRef.current fresh.
+  // This means speed changes take effect immediately on the very next step —
+  // no stale closures, no interval restarts, no position resets.
   useEffect(() => {
-    if (!stream?.steps || stream.steps.length === 0) return
-    if (!aiSolving || isPaused) return
+    const shouldStop = isSolved || !aiSolving || isPaused || !stepsRef.current.length
 
-    const steps = stream.steps
-    const speedMs = currentSpeed === 0.5 ? 800 : currentSpeed === 1 ? 500 : 250
-    playbackIndexRef.current = 0
+    if (shouldStop) {
+      // Stop the loop without touching the position ref
+      isPlayingRef.current = false
+      if (playbackIntervalRef.current !== null) {
+        clearTimeout(playbackIntervalRef.current)
+        playbackIntervalRef.current = null
+      }
+      if (isSolved) {
+        setAiSolving(false)
+        setIsPaused(false)
+      }
+      return
+    }
 
-    playbackIntervalRef.current = window.setInterval(() => {
+    // Already running — let the existing loop continue (speed/steps read via refs)
+    if (isPlayingRef.current) return
+
+    // ── Start the recursive tick loop ──
+    isPlayingRef.current = true
+
+    const tick = () => {
+      // Stop if externally paused/stopped
+      if (!isPlayingRef.current) return
+
+      const steps = stepsRef.current
       const i = playbackIndexRef.current
 
+      // All steps consumed → mark solved
       if (i >= steps.length) {
-        clearInterval(playbackIntervalRef.current!)
+        isPlayingRef.current = false
+        playbackIntervalRef.current = null
         const finalStep = steps[steps.length - 1] as any
-        setBoard(finalStep.state.board)
-        setBlankPos(finalStep.state.board.indexOf(0))
-        setMoveCount(steps.length - 1)
-        setCurrentExplanation(finalStep.explanation || '')
-        setCurrentStepIndex(steps.length - 1)
+        if (finalStep?.state?.board) {
+          setBoard(finalStep.state.board)
+          setBlankPos(finalStep.state.board.indexOf(0))
+          setMoveCount(steps.length - 1)
+          setCurrentExplanation(finalStep.explanation || '')
+          setCurrentStepIndex(steps.length - 1)
+        }
         setAiSolving(false)
         setIsSolved(true)
-        console.log('[8-PUZZLE] PLAYBACK COMPLETE')
+        console.log('[8-PUZZLE] ✅ PLAYBACK COMPLETE - GAME STOPPED PERMANENTLY')
         return
       }
 
+      // Apply step i to the board
       const step = steps[i] as any
       if (step?.state?.board) {
         setBoard(step.state.board)
@@ -121,21 +174,36 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
         setMoveCount(i)
         setCurrentExplanation(step.explanation || '')
         setCurrentStepIndex(i)
-        // Update complexity metrics during AI playback
-        const cs = useComplexityStore.getState();
-        cs.incrementNodes();
-        cs.incrementStates();
-        cs.setDepth(i + 1);
-        cs.updateElapsedTime();
+        const cs = useComplexityStore.getState()
+        cs.incrementNodes()
+        cs.incrementStates()
+        cs.setDepth(i + 1)
+        cs.updateElapsedTime()
       }
 
       playbackIndexRef.current = i + 1
-    }, speedMs)
+
+      // ── Schedule the NEXT tick using the CURRENT speed from ref ──
+      // This is why speed changes always work: currentSpeedRef.current is always fresh.
+      const speedMs = getSpeedMs(currentSpeedRef.current)
+      console.log(`[8-PUZZLE] Step ${i} done. Next in ${speedMs}ms (speed=${currentSpeedRef.current}x)`)
+      playbackIntervalRef.current = setTimeout(tick, speedMs)
+    }
+
+    // Fire first tick after initial delay
+    const initialMs = getSpeedMs(currentSpeedRef.current)
+    console.log(`[8-PUZZLE] ▶ Playback started at step ${playbackIndexRef.current}, ${initialMs}ms/step`)
+    playbackIntervalRef.current = setTimeout(tick, initialMs)
 
     return () => {
-      if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current)
+      // Cleanup: stop the loop when effect re-runs or component unmounts
+      isPlayingRef.current = false
+      if (playbackIntervalRef.current !== null) {
+        clearTimeout(playbackIntervalRef.current)
+        playbackIntervalRef.current = null
+      }
     }
-  }, [aiSolving, isPaused, currentSpeed, stream.steps])
+  }, [isSolved, aiSolving, isPaused, stream?.steps?.length])
 
   // Helper: Convert flat index to row/col
   const getRowCol = (index: number) => {
@@ -268,6 +336,15 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
   // Start new game
   const startGame = useCallback(async () => {
     try {
+      // Stop any running loop
+      isPlayingRef.current = false
+      if (playbackIntervalRef.current !== null) {
+        clearTimeout(playbackIntervalRef.current)
+        playbackIntervalRef.current = null
+      }
+      // Reset position ref so next AI solve starts from step 0
+      playbackIndexRef.current = 0
+
       const res = await gameService.newEightPuzzle()
       setSessionId(res.session_id)
       setBoard(res.board)
@@ -284,12 +361,6 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
       setBestMoves([])
       useGameStore.getState().startGame('eightpuzzle')
       console.log('[8-PUZZLE] New game started:', { board: res.board, optimal: res.optimal_moves })
-
-      // TODO: Load initial best moves (requires backend endpoint)
-      // if (res.session_id) {
-      //   gameService.getBestMoves(res.session_id, res.board)
-      //     .then((bestMovesRes) => setBestMoves(bestMovesRes.moves || []))
-      // }
     } catch (e) {
       console.error('Failed to start 8-puzzle', e)
     }
@@ -313,19 +384,24 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
     return null
   }
 
-  // Watch AI solve - shows final state immediately, then can step through
+  // Watch AI solve – resets position and flags for a fresh start
   const watchAISolve = useCallback(() => {
-    if (!sessionId || aiSolving) return
-    console.log('[8-PUZZLE] Starting AI solve - preparing solution steps')
-    // Start AI solving which will trigger WebSocket connection and stream steps
+    if (!sessionId || aiSolving || isSolved) return
+    console.log('[8-PUZZLE] Starting AI solve - resetting playback to step 0')
+    // Must stop any previous loop and reset position BEFORE setting aiSolving=true
+    isPlayingRef.current = false
+    if (playbackIntervalRef.current !== null) {
+      clearTimeout(playbackIntervalRef.current)
+      playbackIntervalRef.current = null
+    }
+    playbackIndexRef.current = 0
     setMoveCount(0)
     setCurrentStepIndex(0)
     setCurrentExplanation('Fetching optimal solution from AI...')
     setIsPaused(false)
     setAiSolving(true)
-    // Start complexity tracking
-    useComplexityStore.getState().startTracking('eightpuzzle');
-  }, [sessionId, aiSolving])
+    useComplexityStore.getState().startTracking('eightpuzzle')
+  }, [sessionId, aiSolving, isSolved])
 
   const handleSpeedChange = (speed: number) => {
     setCurrentSpeed(speed)
@@ -483,14 +559,14 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
               <div className="text-center space-y-2">
                 <div className="text-xs text-white/60">Speed: {currentSpeed}x</div>
                 <div className="flex gap-1 justify-center">
-                  {[0.5, 1, 2].map((s) => (
+                  {[0.5, 1, 2, 3].map((s) => (
                     <button
                       key={s}
                       onClick={() => handleSpeedChange(s)}
-                      className={`px-2 py-1 text-xs rounded ${
+                      className={`px-3 py-1.5 text-xs rounded font-medium transition-all ${
                         currentSpeed === s
-                          ? 'bg-[var(--accent,#6c63ff)] text-white'
-                          : 'bg-white/10 text-white/60'
+                          ? 'bg-[var(--accent,#6c63ff)] text-white shadow-lg shadow-[var(--accent)]/30'
+                          : 'bg-white/10 text-white/60 hover:bg-white/15 hover:text-white/80'
                       }`}
                     >
                       {s}x
@@ -535,9 +611,14 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
                 isStreaming={false}
                 currentStepIndex={currentStepIndex}
                 onNext={() => {
+                  // Pause auto-play first
+                  if (playbackIntervalRef.current) {
+                    clearInterval(playbackIntervalRef.current)
+                    playbackIntervalRef.current = null
+                  }
                   setIsPaused(true)
-                  if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current)
-                  const nextIdx = Math.min(stream.steps.length - 1, currentStepIndex + 1)
+                  // Use the ref as source of truth – NOT currentStepIndex (may be stale)
+                  const nextIdx = Math.min(stream.steps.length - 1, playbackIndexRef.current)
                   const nextStep = stream.steps[nextIdx] as any
                   if (nextStep?.state?.board) {
                     setBoard(nextStep.state.board)
@@ -545,17 +626,25 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
                     setMoveCount(nextIdx)
                     setCurrentExplanation(nextStep.explanation || '')
                   }
+                  // Advance both ref and state so resume continues correctly
+                  playbackIndexRef.current = nextIdx + 1
                   setCurrentStepIndex(nextIdx)
-                  // If we just applied the last step, mark solved
-                  if (nextIdx === stream.steps.length - 1) {
+                  console.log(`[8-PUZZLE] Manual NEXT → displayed step ${nextIdx}, ref now ${nextIdx + 1}`)
+                  // If last step reached, mark solved
+                  if (nextIdx >= stream.steps.length - 1) {
                     setAiSolving(false)
                     setIsSolved(true)
                   }
                 }}
                 onPrev={() => {
+                  if (playbackIntervalRef.current) {
+                    clearInterval(playbackIntervalRef.current)
+                    playbackIntervalRef.current = null
+                  }
                   setIsPaused(true)
-                  if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current)
-                  const prevIdx = Math.max(0, currentStepIndex - 1)
+                  // Step back: display (ref - 2) since ref points to NEXT undisplayed step
+                  const displayedIdx = playbackIndexRef.current - 1  // currently shown step
+                  const prevIdx = Math.max(0, displayedIdx - 1)
                   const prevStep = stream.steps[prevIdx] as any
                   if (prevStep?.state?.board) {
                     setBoard(prevStep.state.board)
@@ -563,10 +652,19 @@ export default function EightPuzzle({ onSessionChange }: EightPuzzleProps) {
                     setMoveCount(prevIdx)
                     setCurrentExplanation(prevStep.explanation || '')
                   }
+                  // Set ref so resume will continue from prevIdx+1
+                  playbackIndexRef.current = prevIdx + 1
                   setCurrentStepIndex(prevIdx)
+                  console.log(`[8-PUZZLE] Manual PREV → displayed step ${prevIdx}, ref now ${prevIdx + 1}`)
                 }}
-                onPause={() => setIsPaused(true)}
-                onResume={() => setIsPaused(false)}
+                onPause={() => {
+                  console.log(`[8-PUZZLE] ⏸ PAUSED at ref position ${playbackIndexRef.current}`)
+                  setIsPaused(true)
+                }}
+                onResume={() => {
+                  console.log(`[8-PUZZLE] ▶ RESUMED from ref position ${playbackIndexRef.current}`)
+                  setIsPaused(false)
+                }}
                 onSpeedChange={handleSpeedChange}
                 sessionId={sessionId}
                 boardState={JSON.stringify(board)}
