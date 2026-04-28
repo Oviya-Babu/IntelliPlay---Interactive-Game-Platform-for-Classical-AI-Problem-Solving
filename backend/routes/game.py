@@ -175,7 +175,7 @@ async def make_move_eightpuzzle(req: MoveEightPuzzleRequest):
     new_state = EightPuzzleState(tuple(new_board))
     session["state"] = new_state
     session["move_count"] += 1
-    is_solved = list(new_state.board) == GOAL_STATE
+    is_solved = new_state.board == tuple(GOAL_STATE)
     return MoveEightPuzzleResponse(
         board=list(new_state.board),
         blank_pos=target_idx,
@@ -201,7 +201,7 @@ async def websocket_eightpuzzle(websocket: WebSocket, session_id: str):
         return
 
     # If already at goal, tell frontend immediately
-    if list(current_state.board) == GOAL_STATE:
+    if current_state.board == tuple(GOAL_STATE):
         await websocket.send_json({"type": "done", "best_move": None, "total_steps": 0})
         await websocket.close()
         return
