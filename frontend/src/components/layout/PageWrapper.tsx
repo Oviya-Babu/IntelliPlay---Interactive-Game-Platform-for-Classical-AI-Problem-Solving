@@ -14,7 +14,7 @@ export default function PageWrapper({ children }: { children: ReactNode }) {
       initial="initial"
       animate="animate"
       exit="exit"
-      style={{ minHeight: 'calc(100vh - 60px)' }}
+      className="min-h-[calc(100vh-60px)] w-full"
     >
       {children}
     </motion.div>

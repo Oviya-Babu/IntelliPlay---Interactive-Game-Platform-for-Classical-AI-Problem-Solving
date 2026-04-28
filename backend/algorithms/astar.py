@@ -53,13 +53,8 @@ def astar(start: EightPuzzleState) -> AStarResult:
     while frontier:
         node = heapq.heappop(frontier)
         
-        if node.state.board in explored:
-            continue
-            
-        explored.add(node.state.board)
-        nodes_explored += 1
-        
-        # Check if goal reached
+        # ✅ FIX: ALWAYS CHECK GOAL FIRST BEFORE ANYTHING ELSE
+        # This is the critical fix: never skip checking for goal even if state was explored
         if node.state.board == goal:
             # Build steps for solution path with detailed explanations
             solution_steps = []
@@ -113,6 +108,13 @@ def astar(start: EightPuzzleState) -> AStarResult:
                 h_breakdown={"manhattan": node.h}
             )
             
+        # Now add current state to explored set AFTER checking for goal
+        if node.state.board in explored:
+            continue
+            
+        explored.add(node.state.board)
+        nodes_explored += 1
+
         # Explore neighbors
         for neighbor_state, direction in node.state.get_neighbors():
             if neighbor_state.board not in explored:

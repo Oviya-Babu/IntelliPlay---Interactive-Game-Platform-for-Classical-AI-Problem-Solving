@@ -7,6 +7,7 @@ export function useAIStream(sessionId: string | null, wsPath: string = 'tictacto
   const [isStreaming, setIsStreaming] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<number | null>(null)
+  const shouldReconnectRef = useRef(true)
 
   const connect = useCallback(() => {
     if (!sessionId) return
@@ -22,6 +23,8 @@ export function useAIStream(sessionId: string | null, wsPath: string = 'tictacto
         const data = JSON.parse(event.data)
         if (data.type === 'done') {
           setIsStreaming(false)
+          // ✅ Mark that we received "done" message - don't auto-reconnect
+          shouldReconnectRef.current = false
         } else if (data.type === 'error') {
           setIsStreaming(false)
           console.error('WS Error:', data.message)
@@ -39,13 +42,16 @@ export function useAIStream(sessionId: string | null, wsPath: string = 'tictacto
 
     ws.onclose = () => {
       setIsStreaming(false)
-      // Auto-reconnect if we were still supposed to be streaming
-      // Actually auto-reconnect logic goes here if it wasn't closed cleanly
-      reconnectTimeoutRef.current = window.setTimeout(() => {
-        if (wsRef.current?.readyState === WebSocket.CLOSED && sessionId) {
-          connect()
-        }
-      }, 2000)
+      // ✅ Auto-reconnect only if we haven't received "done" message
+      // and only if should reconnect flag is true
+      if (shouldReconnectRef.current && sessionId) {
+        reconnectTimeoutRef.current = window.setTimeout(() => {
+          if (wsRef.current?.readyState === WebSocket.CLOSED && sessionId && shouldReconnectRef.current) {
+            console.log('[AI STREAM] Auto-reconnecting...')
+            connect()
+          }
+        }, 2000)
+      }
     }
     
     ws.onerror = () => {
@@ -55,11 +61,15 @@ export function useAIStream(sessionId: string | null, wsPath: string = 'tictacto
 
   useEffect(() => {
     if (sessionId) {
+      // Reset connection flags for new session
+      shouldReconnectRef.current = true
       setSteps([])
       setCurrentStep(null)
       connect()
     }
     return () => {
+      // ✅ Prevent auto-reconnect when effect cleanup runs
+      shouldReconnectRef.current = false
       if (wsRef.current) {
         wsRef.current.close()
       }

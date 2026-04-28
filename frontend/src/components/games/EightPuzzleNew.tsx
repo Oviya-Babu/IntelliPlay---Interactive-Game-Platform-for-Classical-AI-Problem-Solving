@@ -43,18 +43,55 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
   const stream = useAIStream(aiSolving ? sessionId : null, 'eightpuzzle')
   const playbackIntervalRef = useRef<number | null>(null)
   const goalReachedRef = useRef(false)
+  const playbackIndexRef = useRef(0)  // ✅ Track playback progress with ref instead of state
 
   // Initialize game on mount
   useEffect(() => {
     startNewGame()
+
+    // Cleanup on unmount
+    return () => {
+      if (playbackIntervalRef.current) {
+        clearInterval(playbackIntervalRef.current)
+        playbackIntervalRef.current = null
+      }
+    }
   }, [])
 
   useEffect(() => {
     onSessionChange?.(sessionId)
   }, [onSessionChange, sessionId])
 
-  // AI  playback loop
+  // ✅ Game Completion Handler - Stop all AI operations when puzzle is solved
   useEffect(() => {
+    if (isSolved) {
+      // Clear any running intervals
+      if (playbackIntervalRef.current) {
+        clearInterval(playbackIntervalRef.current)
+        playbackIntervalRef.current = null
+      }
+      
+      // Stop AI operations
+      setAiSolving(false)
+      setIsPaused(false)
+      
+      console.log('[8-PUZZLE] ✅ GOAL STATE REACHED - GAME COMPLETED')
+      console.log('[8-PUZZLE] ✅ Moves:', moveCount, '/ Optimal:', optimalMoves)
+      console.log('[8-PUZZLE] ✅ Waiting for user to request new game...')
+    }
+  }, [isSolved, moveCount, optimalMoves])
+
+  // AI  playback loop - Fixed speed control and timing
+  useEffect(() => {
+    // ✅ ABSOLUTE STOP: If puzzle is solved, never run AI logic
+    if (isSolved || goalReachedRef.current) {
+      if (playbackIntervalRef.current) {
+        clearInterval(playbackIntervalRef.current)
+        playbackIntervalRef.current = null
+      }
+      return
+    }
+
     if (!stream?.steps || stream.steps.length === 0) return
     if (!aiSolving || isPaused) return
     
@@ -62,14 +99,32 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
     if (goalReachedRef.current) return
 
     const steps = stream.steps
-    const speedMs = speed === 0.5 ? 800 : speed === 1 ? 500 : speed === 2 ? 250 : 100
-    let index = currentStepIndex
+    // ✅ CRITICAL FIX: Much slower default speeds for learning
+    // These times determine how long to display each step
+    // Default (1x) is now MUCH slower to allow users to understand and follow
+    const speedMs = 
+      speed === 0.5 ? 3000 :  // 0.5x: 3000ms per step (3 seconds - very slow for learning)
+      speed === 1 ? 2000 :    // 1x: 2000ms per step (2 seconds - DEFAULT, slow for following)
+      speed === 2 ? 1000 :    // 2x: 1000ms per step (1 second - faster)
+      500                      // 3x: 500ms per step (very fast)
+
+    // ✅ Reset index when starting or speed changes
+    playbackIndexRef.current = 0
+
+    // Clear any existing interval first
+    if (playbackIntervalRef.current) {
+      clearInterval(playbackIntervalRef.current)
+    }
 
     playbackIntervalRef.current = window.setInterval(() => {
+      const index = playbackIndexRef.current
+
       // Double-check: if goal reached, stop immediately
-      if (goalReachedRef.current) {
-        clearInterval(playbackIntervalRef.current!)
-        playbackIntervalRef.current = null
+      if (goalReachedRef.current || isSolved) {
+        if (playbackIntervalRef.current) {
+          clearInterval(playbackIntervalRef.current)
+          playbackIntervalRef.current = null
+        }
         return
       }
       
@@ -77,7 +132,11 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
         // Mark goal as reached FIRST
         goalReachedRef.current = true
         
-        clearInterval(playbackIntervalRef.current!)
+        if (playbackIntervalRef.current) {
+          clearInterval(playbackIntervalRef.current)
+          playbackIntervalRef.current = null
+        }
+        
         const last = steps[steps.length - 1] as any
         setBoard(last.state.board)
         // Move count = total steps - 1 (first step is initial state, not a move)
@@ -87,11 +146,6 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
         // CRITICAL: Stop AI solving immediately when goal is reached
         setAiSolving(false)
         setIsSolved(true)
-        // Clear interval to prevent any further execution
-        if (playbackIntervalRef.current) {
-          clearInterval(playbackIntervalRef.current)
-          playbackIntervalRef.current = null
-        }
         return
       }
 
@@ -104,7 +158,8 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
         setCurrentStepIndex(index)
       }
 
-      index++
+      // ✅ Increment using ref instead of local variable
+      playbackIndexRef.current++
     }, speedMs)
 
     return () => {
@@ -113,7 +168,10 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
         playbackIntervalRef.current = null
       }
     }
-  }, [aiSolving, isPaused, speed, stream?.steps, currentStepIndex])
+    // ✅ CRITICAL FIX: Removed currentStepIndex from dependencies
+    // This prevents the effect from restarting on every step
+    // Dependencies: only aiSolving, isPaused, speed, steps, and isSolved
+  }, [aiSolving, isPaused, speed, stream?.steps, isSolved])
 
   // Start new game
   const startNewGame = useCallback(async () => {
@@ -122,6 +180,8 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
       setError('')
       // Reset goal reached flag when starting new game
       goalReachedRef.current = false
+      // ✅ Reset playback index when starting new game
+      playbackIndexRef.current = 0
       
       const res = await gameService.newEightPuzzle()
       
@@ -225,12 +285,15 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
 
   // Start AI solving
   const solvePuzzle = useCallback(() => {
-    if (!sessionId || aiSolving) return
+    // ✅ CRITICAL: Prevent solving if puzzle is already solved
+    if (!sessionId || aiSolving || isSolved || goalReachedRef.current) return
+    // ✅ Reset playback index when starting to solve
+    playbackIndexRef.current = 0
     setAiSolving(true)
     setIsPaused(false)
     setCurrentStepIndex(0)
     setCurrentExplanation('Solving puzzle with A* algorithm...')
-  }, [sessionId, aiSolving])
+  }, [sessionId, aiSolving, isSolved])
 
   // Get hint - suggest next move
   const getHint = useCallback(async () => {
