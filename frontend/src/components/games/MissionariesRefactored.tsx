@@ -187,7 +187,8 @@ export default function MissionariesRefactored() {
     if (!sessionId || isSolved || aiSolving) return
 
     try {
-      const res = await fetch(`/api/games/missionaries/${sessionId}/hint`, {
+      const API_URL = import.meta.env.VITE_API_URL || ''
+      const res = await fetch(`${API_URL}/api/games/missionaries/${sessionId}/hint`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       })

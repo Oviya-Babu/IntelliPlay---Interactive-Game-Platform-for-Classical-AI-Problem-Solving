@@ -23,7 +23,7 @@ import {
 } from './utils';
 import { useComplexityStore } from '@/store/complexityStore';
 
-const API_BASE = '/api/games';
+const API_BASE = `${import.meta.env.VITE_API_URL || ''}/api/games`;
 
 export default function Cryptarithmetic() {
   // ── Level state ──
@@ -427,7 +427,8 @@ export default function Cryptarithmetic() {
     setChatMessages(prev => [...prev, { role: 'user', text: msg }]);
 
     try {
-      const res = await fetch('/api/chat', {
+      const API_URL = import.meta.env.VITE_API_URL || ''
+      const res = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

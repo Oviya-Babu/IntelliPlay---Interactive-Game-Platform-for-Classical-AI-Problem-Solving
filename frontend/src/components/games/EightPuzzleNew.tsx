@@ -303,7 +303,8 @@ export default function EightPuzzleNew({ onSessionChange }: EightPuzzleNewProps)
     try {
       // Use the game session to get a hint
       // We'll make a call to solve from current state and get the first move
-      const res = await fetch(`/api/games/eightpuzzle/${sessionId}/hint`, {
+      const API_URL = import.meta.env.VITE_API_URL || ''
+      const res = await fetch(`${API_URL}/api/games/eightpuzzle/${sessionId}/hint`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       })
